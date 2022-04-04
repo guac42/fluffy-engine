@@ -1,14 +1,17 @@
 #ifndef PATHTRACER_CAMERA_H
 #define PATHTRACER_CAMERA_H
 
+#include <cmath>
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include "gfx/Window.h"
 
 class Camera {
 public:
-    glm::vec3 Position, Front, Right, Up, Velocity;
+    glm::vec3 Position, Front, Right, Up, Acceleration;
     float MovementSpeed, MouseSensitivity;
+    bool moved = false, onGround = false;
 
     explicit Camera(const glm::vec3& position, float yaw = 90.0f,
            float pitch = 0.0f, float mouseSensitivity = 0.3f, float speed = 2.0f) {
@@ -16,13 +19,14 @@ public:
         this->pitch = pitch;
 
         Front = glm::normalize(glm::vec3(
-                cos(glm::radians(this->yaw)) * cos(glm::radians(this->pitch)),
-                sin(glm::radians(this->pitch)),
-                sin(glm::radians(this->yaw)) * cos(glm::radians(this->pitch))
+                std::cos(glm::radians(this->yaw)) * std::cos(glm::radians(this->pitch)),
+                std::sin(glm::radians(this->pitch)),
+                std::sin(glm::radians(this->yaw)) * std::cos(glm::radians(this->pitch))
         ));
 
         Right = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), Front));
         Up = glm::normalize(glm::cross(Front, Right));
+        Acceleration = glm::vec3(0);
 
         this->view = glm::lookAt(position, position + Front, Up);
         Position = position;
@@ -40,6 +44,14 @@ public:
 
     inline float getPitch() const {
         return this->pitch;
+    }
+
+    void processWorldUpdate(float x, float y, float z) {
+        this->Position.x = x;
+        this->Position.y = y;
+        this->Position.z = z;
+
+        this->view = glm::lookAt(Position, Position + Front, Up);
     }
 
     void processFrameUpdate(Window *game, bool& frameChanged) {
@@ -61,23 +73,22 @@ public:
         Right = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), Front));
         Up = glm::normalize(glm::cross(Front, Right));
 
-        glm::vec3 acceleration =
-                ((float)game->keyboardManager.isKeyDown(GLFW_KEY_W) * Front) -
-                ((float)game->keyboardManager.isKeyDown(GLFW_KEY_S) * Front) +
-                ((float)game->keyboardManager.isKeyDown(GLFW_KEY_A) * Right) -
-                ((float)game->keyboardManager.isKeyDown(GLFW_KEY_D) * Right) +
-                ((float)game->keyboardManager.isKeyDown(GLFW_KEY_SPACE) * Up) -
-                ((float)game->keyboardManager.isKeyDown(GLFW_KEY_LEFT_CONTROL) * Up);
-        Velocity +=
-                game->keyboardManager.isKeyDown(GLFW_KEY_LEFT_SHIFT) ? acceleration * 5.0f : acceleration;
+        glm::vec3 forward = glm::vec3(Front.x, 0, Front.z),
+                right = glm::vec3(Right.x, 0, Right.z);
 
-        frameChanged = mouseDelta.x != 0 || mouseDelta.y != 0 || acceleration != glm::vec3(0) || Velocity != glm::vec3(0);
+#define DOWN(x) ((float)game->keyboardManager.isKeyDown(x))
 
-        // Velocity cut off
-        Velocity *= (float)(glm::dot(Velocity, Velocity) >= 0.01f) * 0.95f;
-        Velocity += game->deltaTime() * acceleration;
-        Position += game->deltaTime() * (float)(glm::length(Velocity) >= 0.0001f) * Velocity;
-        this->view = glm::lookAt(Position, Position + Front, Up);
+        Acceleration =
+                (DOWN(GLFW_KEY_W) * forward) -
+                (DOWN(GLFW_KEY_S) * forward) +
+                (DOWN(GLFW_KEY_A) * right) -
+                (DOWN(GLFW_KEY_D) * right);
+        if (Acceleration.x != 0 || Acceleration.z != 0) {
+            moved = true;
+            Acceleration = 5.f * glm::normalize(Acceleration);
+            return;
+        }
+        moved = false;
     }
 
 private:

@@ -12,6 +12,14 @@ file(GLOB_RECURSE SOURCE
 
 add_executable(GameGL ${SOURCE})
 
+find_package(Bullet)
+include_directories ( ${BULLET_INCLUDE_DIRS} )
+target_link_libraries(GameGL ${BULLET_LIBRARIES})
+
+if (CMAKE_BUILD_TYPE MATCHES Debug)
+    add_definitions(-DDEBUG)
+endif()
+
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     file(GLOB LIBS
             libs/*.a)

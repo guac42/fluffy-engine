@@ -9,6 +9,8 @@
 #include "objects/Texture.h"
 #include "Image.h"
 
+#include "GLUtils.h"
+
 class Skybox {
 private:
     VertexArray vao;
@@ -17,7 +19,7 @@ private:
 
 public:
     explicit Skybox(const std::string& texturePath)
-    : program({*new Shader(Shader::Vertex, "#version 430 core\n"
+    : program({new Shader(Shader::Vertex, "#version 430 core\n"
                                            "layout (location = 0) in vec3 aPosition;\n"
                                            "uniform mat4 uProjection, uView;\n"
                                            "out vec3 eyeDir;\n"
@@ -26,7 +28,7 @@ public:
                                            "    vec4 pos = uProjection * mat4(mat3(uView)) * vec4(aPosition, 1.0);\n"
                                            "    gl_Position = pos.xyww;\n"
                                            "}", false),
-               *new Shader(Shader::Fragment, "#version 430 core\n"
+               new Shader(Shader::Fragment, "#version 430 core\n"
                                              "uniform samplerCube uTexture;\n"
                                              "in vec3 eyeDir;\n"
                                              "out vec4 frag_color;\n"
@@ -48,7 +50,12 @@ public:
         glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
 
         // Allocate cube map
-        this->texture.ImmutableAllocate(xStride, yStride, 0, GL_RGB8);
+        // The only way to mutably allocate cube map :(
+        this->texture.Bind();
+        for (int i = 0; i < 6; ++i) {
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                    0, format, xStride, yStride, 0, format, GL_UNSIGNED_BYTE, nullptr);
+        }
 
         // Copy faces
         glCopyImageSubData(whole.getId(), GL_TEXTURE_2D, 0, 2*xStride,   yStride, 0,

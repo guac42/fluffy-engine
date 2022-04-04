@@ -5,6 +5,8 @@
 
 class KeyboardManager {
 private:
+    // Wacky bitwise shit
+    // Not sure why I did this, but I did :/
     //0x00000001-current 0x00000010-previous
     unsigned char keys[GLFW_KEY_LAST]{0x0};
 

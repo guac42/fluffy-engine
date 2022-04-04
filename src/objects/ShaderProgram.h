@@ -58,6 +58,7 @@ public:
         char* infoLog = (char*)malloc(compiled);
         glGetShaderInfoLog(this->id, compiled, &compiled, infoLog);
         printf("Shader Compilation Error:\n%s\n", infoLog);
+        free(infoLog);
     }
 
     GLuint getId() const {
@@ -65,7 +66,7 @@ public:
     }
 
     virtual ~Shader() {
-        printf("Delete Shader\n");
+        printf("Delete Shader (%d)\n", this->id);
         glDeleteShader(this->id);
         this->id = -1;
     }
@@ -77,13 +78,16 @@ private:
     GLuint id;
 
 public:
-    explicit Program(const std::vector<Shader>& shaders) {
+    explicit Program(const std::vector<Shader*>& shaders) {
         this->id = glCreateProgram();
         for (const auto &shader : shaders)
-            glAttachShader(this->id, shader.getId());
+            glAttachShader(this->id, shader->getId());
         glLinkProgram(this->id);
-        for (const auto &shader : shaders)
-            glDetachShader(this->id, shader.getId());
+        for (const auto &shader : shaders) {
+            glDetachShader(this->id, shader->getId());
+            delete shader;
+        }
+
         int linked;
         glGetProgramiv(this->id, GL_LINK_STATUS, &linked);
         if (linked) return;
@@ -92,6 +96,7 @@ public:
         char* infoLog = (char*)malloc(linked);
         glGetProgramInfoLog(this->id, linked, &linked, infoLog);
         printf("Program Link Error:\n%s\n", infoLog);
+        free(infoLog);
     }
 
     void Use() const {

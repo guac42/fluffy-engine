@@ -47,6 +47,16 @@ private:
     static void _error_callback(int error, const char *description) {
         fprintf(stderr, "Error %d: %s\n", error, description);
     }
+
+#ifdef DEBUG
+
+    static void GLAPIENTRY _gl_error_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam) {
+        fprintf( stderr, "GLError: %s type = 0x%x, severity = 0x%x, message = %s\n",
+                 ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
+                 type, severity, message );
+    }
+
+#endif
     
     static void _key_callback(GLFWwindow *handle, int key, int scancode, int action, int mods) {
         if (key < 0) return;
@@ -167,6 +177,11 @@ public:
             glfwTerminate();
             exit(1);
         }
+
+#ifdef DEBUG
+        glEnable(GL_DEBUG_OUTPUT);
+        glDebugMessageCallback(_gl_error_callback, nullptr);
+#endif
 
         glfwGetFramebufferSize(this->handle, &this->width, &this->height);
         glViewport(0, 0, this->width, this->height);

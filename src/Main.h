@@ -9,14 +9,16 @@
 #include "Skybox.h"
 #include "objects/ShaderProgram.h"
 #include "objects/VertexArray.h"
+#include "World.h"
 
 class GameWindow : public Window {
 public:
-    Camera camera = *new Camera(glm::vec3(0.0f, 0.0f, 0.0f));
+    Camera *camera = new Camera(glm::vec3(0.0f, 1.0f, 0.0f));
     glm::mat4 projection;
     Program *program;
     VertexArray *vao;
     Skybox *skybox;
+    World *world;
 
     GameWindow()
     : Window("Game Frame") {
@@ -45,7 +47,9 @@ public:
 
         skybox = new Skybox("./resources/skybox.jpg");
 
-        program = new Program({*new Shader(Shader::Vertex, "#version 430 core\n"
+        world = new World(this->camera);
+
+        program = new Program({new Shader(Shader::Vertex, "#version 430 core\n"
                                                            "layout (location = 0) in vec3 aPosition;\n"
                                                            "layout (location = 1) in vec3 aColor;\n"
                                                            "uniform mat4 m, v, p;\n"
@@ -54,7 +58,7 @@ public:
                                                            "    color = aColor;\n"
                                                            "    gl_Position = p * v * m * vec4(aPosition, 1.0f);\n"
                                                            "}", false),
-                               *new Shader(Shader::Fragment, "#version 430 core\n"
+                               new Shader(Shader::Fragment, "#version 430 core\n"
                                                              "in vec3 color;\n"
                                                              "out vec4 frag_color;\n"
                                                              "void main() {\n"
@@ -67,12 +71,13 @@ public:
         program = nullptr;
         delete vao;
         vao = nullptr;
+        delete world;
     }
 
     void OnUpdateFrame() override {
         bool frameChanged;
-        this->camera.processFrameUpdate(this, frameChanged);
-
+        this->camera->processFrameUpdate(this, frameChanged);
+        this->world->updateWorld(this->deltaTime());
         Window::OnUpdateFrame();
     }
 
@@ -83,11 +88,11 @@ public:
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         program->Use();
         program->Upload("m", glm::mat4(1));
-        program->Upload("v", this->camera.getView());
+        program->Upload("v", this->camera->getView());
         program->Upload("p", this->projection);
         vao->Bind();
         glDrawArrays(GL_TRIANGLES, 0, 3);
-        this->skybox->Render(this->projection, this->camera.getView());
+        this->skybox->Render(this->projection, this->camera->getView());
     }
 
     void OnGameTick() override {
@@ -104,4 +109,4 @@ public:
     }
 };
 
-#endif //PATHTRACER_MAIN_H
+#endif //PATHTRACER_MAIN_
