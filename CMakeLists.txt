@@ -10,11 +10,7 @@ file(GLOB_RECURSE SOURCE
         source/glad.c
         include/imgui/*.cpp)
 
-add_executable(GameGL ${SOURCE})
-
-find_package(Bullet)
-include_directories ( ${BULLET_INCLUDE_DIRS} )
-target_link_libraries(GameGL ${BULLET_LIBRARIES})
+add_executable(Fluffy ${SOURCE})
 
 if (CMAKE_BUILD_TYPE MATCHES Debug)
     add_definitions(-DDEBUG)
@@ -24,15 +20,22 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     file(GLOB LIBS
             libs/*.a)
     find_package(Threads REQUIRED)
-    target_link_libraries(GameGL ${LIBS} ${CMAKE_DL_LIBS} Threads::Threads)
+    target_link_libraries(Fluffy ${LIBS} ${CMAKE_DL_LIBS} Threads::Threads)
 elseif (MSVC)
-    file(GLOB LIBS
-            libs/msvc/*.lib)
-    target_link_libraries(GameGL ${LIBS})
+    if (CMAKE_BUILD_TYPE MATCHES Debug)
+        file(GLOB LIBS
+                libs/msvc/*.lib
+                libs/msvc/debug/*.lib)
+    else()
+        file(GLOB LIBS
+                libs/msvc/*.lib
+                libs/msvc/release/*.lib)
+    endif()
+    target_link_libraries(Fluffy ${LIBS})
 elseif (MINGW)
     file(GLOB LIBS
             libs/mingw/*.a)
-    target_link_libraries(GameGL ${LIBS})
+    target_link_libraries(Fluffy ${LIBS})
 endif()
 
 # Resource folder for shaders etc.
