@@ -13,12 +13,12 @@
 
 class GameWindow : public Window {
 public:
-    Camera *camera = new Camera(glm::vec3(0.0f, 1.0f, 0.0f));
     glm::mat4 projection;
     Program *program;
     VertexArray *vao;
     Skybox *skybox;
     World *world;
+    Client *client;
 
     GameWindow()
     : Window("Game Frame") {
@@ -47,23 +47,13 @@ public:
 
         skybox = new Skybox("./resources/skybox.jpg");
 
-        world = new World(this->camera);
+        client = new Client(glm::vec3(0.f, 1.f, 0.f));
 
-        program = new Program({new Shader(Shader::Vertex, "#version 430 core\n"
-                                                           "layout (location = 0) in vec3 aPosition;\n"
-                                                           "layout (location = 1) in vec3 aColor;\n"
-                                                           "uniform mat4 m, v, p;\n"
-                                                           "out vec3 color;\n"
-                                                           "void main() {\n"
-                                                           "    color = aColor;\n"
-                                                           "    gl_Position = p * v * m * vec4(aPosition, 1.0f);\n"
-                                                           "}", false),
-                               new Shader(Shader::Fragment, "#version 430 core\n"
-                                                             "in vec3 color;\n"
-                                                             "out vec4 frag_color;\n"
-                                                             "void main() {\n"
-                                                             "    frag_color = vec4(color, 1.0f);\n"
-                                                             "}", false)});
+        world = new World();
+        world->addPlayer(client);
+
+        program = new Program({new Shader(Shader::Vertex, "../resources/solid.vert"),
+                               new Shader(Shader::Fragment, "../resources/solid.frag")});
     }
 
     void OnClose() override {
@@ -75,8 +65,7 @@ public:
     }
 
     void OnUpdateFrame() override {
-        bool frameChanged;
-        this->camera->processFrameUpdate(this, frameChanged);
+        this->client->updateInputs(this);
         this->world->updateWorld(this->deltaTime());
         Window::OnUpdateFrame();
     }
@@ -88,11 +77,11 @@ public:
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         program->Use();
         program->Upload("m", glm::mat4(1));
-        program->Upload("v", this->camera->getView());
+        program->Upload("v", this->client->getView());
         program->Upload("p", this->projection);
         vao->Bind();
         glDrawArrays(GL_TRIANGLES, 0, 3);
-        this->skybox->Render(this->projection, this->camera->getView());
+        this->skybox->Render(this->projection, this->client->getView());
     }
 
     void OnGameTick() override {

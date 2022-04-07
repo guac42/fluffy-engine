@@ -44,7 +44,7 @@ public:
 
 private:
     // Internal Callbacks
-    static void _error_callback(int error, const char *description) {
+    static void _glfw_error_callback(int error, const char *description) {
         fprintf(stderr, "Error %d: %s\n", error, description);
     }
 
@@ -134,10 +134,7 @@ public:
         this->width = width;
         this->height = height;
 
-        this->last_frame = NOW();
-        this->last_second = NOW();
-
-        glfwSetErrorCallback(_error_callback);
+        glfwSetErrorCallback(_glfw_error_callback);
 
         if (!glfwInit()) {
             fprintf(stderr, "%s", "error initializing GLFW\n");
@@ -191,6 +188,10 @@ public:
 
     void Run() {
         this->OnLoad();
+
+        this->last_frame = NOW();
+        this->last_second = NOW();
+
         glfwShowWindow(this->handle);
 
         while (!glfwWindowShouldClose(this->handle)) {
@@ -206,7 +207,9 @@ public:
                 this->ticks = 0;
                 this->last_second = start;
 
+#ifdef DEBUG
                 printf("FPS: %lld | TPS: %lld\n", this->fps, this->tps);
+#endif
             }
 
             // tick processing

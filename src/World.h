@@ -1,8 +1,12 @@
 #ifndef GAMEFRAME_WORLD_H
 #define GAMEFRAME_WORLD_H
 
+#include <vector>
+
 #include <bullet/btBulletDynamicsCommon.h>
 #include <bullet/btBulletCollisionCommon.h>
+#include "Player.h"
+#include "Client.h"
 
 class World {
 private:
@@ -13,12 +17,10 @@ private:
     btDiscreteDynamicsWorld *dynamicsWorld;
 
     btAlignedObjectArray<btCollisionShape*> collisionShapes;
-
-    Camera *camera;
-    btRigidBody *cameraBody;
+    std::vector<Player*> players;
 
 public:
-    explicit World(Camera *camera): camera(camera) {
+    World() {
         this->collisionConfiguration = new btDefaultCollisionConfiguration();
         this->dispatcher = new btCollisionDispatcher(this->collisionConfiguration);
         this->overlappingPairCache = new btDbvtBroadphase();
@@ -44,45 +46,19 @@ public:
             this->dynamicsWorld->addRigidBody(body);
         }
 
-        // Add camera body
-        {
-            btCollisionShape *colShape = new btSphereShape(btScalar(0.6));
-            this->collisionShapes.push_back(colShape);
+    }
 
-            btTransform startTransform;
-            startTransform.setIdentity();
-            startTransform.setOrigin(btVector3(0, 1, 0));
-
-            btScalar mass(1.f);
-            btVector3 localInertia(0, 0, 0);
-            colShape->calculateLocalInertia(mass, localInertia);
-
-            //using motionstate is recommended, it provides interpolation capabilities, and only synchronizes 'active' objects
-            btDefaultMotionState *myMotionState = new btDefaultMotionState(startTransform);
-            btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, myMotionState, colShape, localInertia);
-            this->cameraBody = new btRigidBody(rbInfo);
-            this->cameraBody->setAngularFactor(btScalar(0.));
-            this->cameraBody->setDamping(btScalar(.8), btScalar(0.));
-            // Could disable deactivation, but might be less efficient
-            //this->cameraBody->setActivationState(DISABLE_DEACTIVATION);
-
-            this->dynamicsWorld->addRigidBody(cameraBody);
-        }
+    void addPlayer(Player *player) {
+        this->dynamicsWorld->addRigidBody(player->getBody());
+        players.push_back(player);
     }
 
     void updateWorld(float delta) {
-        if (this->camera->moved) {
-            btVector3 force(btScalar(this->camera->Acceleration.x), btScalar(this->camera->Acceleration.y),
-                            btScalar(this->camera->Acceleration.z));
-            // for some reason applying a force doesn't unsleep the body?
-            this->cameraBody->activate();
-            this->cameraBody->applyCentralForce(force);
-        }
-        int steps = this->dynamicsWorld->stepSimulation(delta);
-        btTransform transform;
-        this->cameraBody->getMotionState()->getWorldTransform(transform);
-        printf("%d - %f, %f, %f\n", steps, float(transform.getOrigin().getX()), float(transform.getOrigin().getY()), float(transform.getOrigin().getZ()));
-        this->camera->processWorldUpdate(float(transform.getOrigin().getX()), float(transform.getOrigin().getY()), float(transform.getOrigin().getZ()));
+        this->dynamicsWorld->stepSimulation(delta); // Physics world step
+
+        for (const auto &player : this->players)
+            player->update();
+
     }
 
     virtual ~World() {
