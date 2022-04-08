@@ -17,9 +17,8 @@ private:
 
 #define IS_DOWN(x) (game->keyboardManager.isKeyDown(x))
 
-        //TODO: should be isDown and check if on ground
-        this->jumped = game->keyboardManager.isKeyDown(GLFW_KEY_SPACE);
-        //printf("Jumped: %d\n", game->keyboardManager.keys[GLFW_KEY_SPACE] ^ 0x00000010);
+        //TODO: should check if on ground
+        this->jumped = IS_DOWN(GLFW_KEY_SPACE);
         this->acceleration =
                 ((float)IS_DOWN(GLFW_KEY_W) * forward) -
                 ((float)IS_DOWN(GLFW_KEY_S) * forward) +

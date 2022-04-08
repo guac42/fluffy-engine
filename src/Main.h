@@ -62,11 +62,13 @@ public:
     }
 
     void OnClose() override {
+        Ui::cleanImGui();
+        delete world;
+        world = nullptr;
         delete program;
         program = nullptr;
         delete vao;
         vao = nullptr;
-        delete world;
     }
 
     void OnUpdateFrame() override {
@@ -98,7 +100,7 @@ public:
 
     void OnGameTick() override {
         Window::OnGameTick();
-        //Child implementation
+        // Child implementation
     }
 
     void OnResize() override {

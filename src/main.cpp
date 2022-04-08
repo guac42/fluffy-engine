@@ -1,7 +1,10 @@
 #include "Main.h"
 
-// C# inspiration: https://github.com/JulianStambuk/OpenTK-PathTracer
-// Imgui: https://github.com/ocornut/imgui
+#ifdef WIN32
+#ifndef DEBUG
+#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
+#endif
+#endif
 
 int main() {
     GameWindow game;

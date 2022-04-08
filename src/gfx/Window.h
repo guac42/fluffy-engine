@@ -18,8 +18,8 @@
 #ifndef VSYNC
 #define VSYNC (true)
 #endif
-#ifndef KEYBIND_FULLSCREEN
-#define KEYBIND_FULLSCREEN GLFW_KEY_F
+#ifndef KB_FULLSCREEN
+#define KB_FULLSCREEN GLFW_KEY_F
 #endif
 #ifndef KB_QUIT
 #define KB_QUIT GLFW_KEY_Q
@@ -60,7 +60,7 @@ private:
         Window *window = GetWindow(handle);
         switch (key) {
             // Fullscreen
-            case KEYBIND_FULLSCREEN:
+            case KB_FULLSCREEN:
                 if (action == GLFW_PRESS) {
                     if (glfwGetWindowAttrib(handle, GLFW_MAXIMIZED)) {
                         glfwRestoreWindow(handle);
@@ -70,7 +70,7 @@ private:
                 }
                 break;
             // Exit
-            case KEYBIND_QUIT:
+            case KB_QUIT:
                 if (action == GLFW_PRESS)
                     glfwSetWindowShouldClose(handle, GLFW_TRUE);
                 break;
@@ -148,7 +148,7 @@ public:
         glfwSetWindowUserPointer(this->handle, this);
 
         glfwSetWindowAspectRatio(this->handle, 16, 9);
-        glfwSetInputMode(this->handle, GLFW_STICKY_KEYS, GLFW_TRUE);
+        glfwSetInputMode(this->handle, GLFW_STICKY_KEYS, GLFW_FALSE);
         glfwSetWindowSizeLimits(this->handle, 640, 360, GLFW_DONT_CARE, GLFW_DONT_CARE);
 
         // callbacks

@@ -73,7 +73,7 @@ public:
         this->show = visible;
     }
 
-    void cleanImGui() {
+    static void cleanImGui() {
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
