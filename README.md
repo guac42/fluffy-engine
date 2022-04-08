@@ -1,24 +1,17 @@
-# GameFrame
+# Fluffy Engine
 
-A framework for games written in cpp with opengl and glfw
+An attempt at writing a simple multiplayer game.
 
-The goal is simply to provide a base for developing games. Removing the need to spend excessive amounts of time setting up a project. Allowing for more time to write your engine and/or game. The framework itself is included in the `src/gfx` folder and `src/Main.h` is an example implementation.
+Currently, only the client is being developed. But multiplayer and the server are soon to come.
 
 ---
-
-## **Features**
-* Structure very similar to that of OpenTK for C#
-* Setup to compile for Windows and Linux
-* Already equipped with helpful libraries 
-* Basic GL object wrappers (In progress)
-* Basic Objects (ex. Camera)
 
 ## **Libraries**
+* [Glfw](https://www.glfw.org/) - window management
+* [Glad](https://github.com/Dav1dde/glad) - opengl loader
 * [GLM](https://github.com/g-truc/glm) - graphics math
-* [imgui](https://github.com/ocornut/imgui) - guis
+* [ImGui](https://github.com/ocornut/imgui) - guis
 * [STB Image](https://github.com/nothings/stb) - image loading
-* [Rapid Xml](https://github.com/discord/rapidxml) - collada file parsing
+* [Bullet3](https://github.com/bulletphysics/bullet3) -  physics engine
 
 ---
-
-Future branches will be added as examples implementing the framework

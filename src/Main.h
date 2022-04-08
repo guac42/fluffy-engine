@@ -10,19 +10,20 @@
 #include "objects/ShaderProgram.h"
 #include "objects/VertexArray.h"
 #include "World.h"
+#include "Ui.h"
 
 class GameWindow : public Window {
 public:
-    glm::mat4 projection;
-    Program *program;
-    VertexArray *vao;
-    Skybox *skybox;
-    World *world;
-    Client *client;
+    Program* program;
+    VertexArray* vao;
+    Skybox* skybox;
+    World* world;
+    Client* client;
+    Ui* ui;
 
     GameWindow()
     : Window("Game Frame") {
-        this->projection = glm::perspective(glm::radians(90.0f), (float)this->width/(float)this->height, 0.01f, 100.0f);
+
     }
 
     void OnLoad() override {
@@ -41,16 +42,20 @@ public:
             vao = new VertexArray();
             vao->AddSourceBuffer(dataBuffer, 0, 6*sizeof(float));
             vao->AddSourceBuffer(dataBuffer, 1, 6*sizeof(float), 3*sizeof(float));
-            vao->SetAttribFormat(0, 3, GL_FLOAT);
-            vao->SetAttribFormat(1, 3, GL_FLOAT);
+            vao->SetAttribFormat(0, 3, GL_FLOAT); // position
+            vao->SetAttribFormat(1, 3, GL_FLOAT); // color
         }
 
-        skybox = new Skybox("./resources/skybox.jpg");
+        skybox = new Skybox("./resources/blue.png");
 
         client = new Client(glm::vec3(0.f, 1.f, 0.f));
+        client->resize(this);
 
         world = new World();
-        world->addPlayer(client);
+        world->addThing(client);
+
+        Ui::InitImGui(Window::handle);
+        ui = new Ui();
 
         program = new Program({new Shader(Shader::Vertex, "../resources/solid.vert"),
                                new Shader(Shader::Fragment, "../resources/solid.frag")});
@@ -65,7 +70,10 @@ public:
     }
 
     void OnUpdateFrame() override {
-        this->client->updateInputs(this);
+        this->ui->updateFrame(this);
+        this->client->updateFrame(this);
+
+        // Updated last
         this->world->updateWorld(this->deltaTime());
         Window::OnUpdateFrame();
     }
@@ -78,10 +86,14 @@ public:
         program->Use();
         program->Upload("m", glm::mat4(1));
         program->Upload("v", this->client->getView());
-        program->Upload("p", this->projection);
+        program->Upload("p", this->client->getProjection());
         vao->Bind();
         glDrawArrays(GL_TRIANGLES, 0, 3);
-        this->skybox->Render(this->projection, this->client->getView());
+#ifdef DEBUG
+        //this->world->renderDebug(this->client);
+#endif
+        this->skybox->Render(this->client->getProjection(), this->client->getView());
+        this->ui->render();
     }
 
     void OnGameTick() override {
@@ -90,11 +102,17 @@ public:
     }
 
     void OnResize() override {
-        this->projection = glm::perspective(glm::radians(90.0f), (float)this->width/(float)this->height, 0.01f, 100.0f);
+        client->resize(this);
     }
 
-    void OnKeyPress() override {
-
+    void OnKeyPress(int key, int action) override {
+        switch (key) {
+            case GLFW_KEY_ESCAPE:
+                if (action != GLFW_PRESS) break;
+                Window::ToggleCursorLock(); // Updates Window::cursorLocked
+                this->ui->visible(!Window::cursorLocked); // If cursor is NOT locked show Ui
+                break;
+        }
     }
 };
 

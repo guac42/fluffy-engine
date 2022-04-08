@@ -10,7 +10,7 @@
 
 #include "KeyboardManager.h"
 #include "MouseManager.h"
-#include "Util.h"
+#include "../utils/Utils.h"
 
 #ifndef TICKS_PER_SECOND
 #define TICKS_PER_SECOND (60)
@@ -21,11 +21,8 @@
 #ifndef KEYBIND_FULLSCREEN
 #define KEYBIND_FULLSCREEN GLFW_KEY_F
 #endif
-#ifndef KEYBIND_QUIT
-#define KEYBIND_QUIT GLFW_KEY_ESCAPE
-#endif
-#ifndef KEYBIND_TOGGLE_CURSOR
-#define KEYBIND_TOGGLE_CURSOR GLFW_KEY_T
+#ifndef KB_QUIT
+#define KB_QUIT GLFW_KEY_Q
 #endif
 
 #define GetWindow(handle) ((Window*)glfwGetWindowUserPointer(handle))
@@ -34,7 +31,7 @@ class Window {
 public:
     GLFWwindow *handle;
     int width, height;
-    bool focused;
+    bool focused, cursorLocked;
     KeyboardManager keyboardManager;
     MouseManager mouseManager;
 
@@ -77,20 +74,12 @@ private:
                 if (action == GLFW_PRESS)
                     glfwSetWindowShouldClose(handle, GLFW_TRUE);
                 break;
-            // Lock cursor
-            case KEYBIND_TOGGLE_CURSOR:
-                if (action == GLFW_PRESS)
-                    glfwSetInputMode(handle, GLFW_CURSOR,
-                                     glfwGetInputMode(handle, GLFW_CURSOR) == GLFW_CURSOR_NORMAL
-                                     ? GLFW_CURSOR_DISABLED
-                                     : GLFW_CURSOR_NORMAL);
-                break;
             default:
                 break;
         }
         // Key states
         window->keyboardManager.update(key, action);
-        window->OnKeyPress();
+        window->OnKeyPress(key, action);
     }
 
     static void _cursor_callback(GLFWwindow *handle, double xp, double yp) {
@@ -189,6 +178,7 @@ public:
     void Run() {
         this->OnLoad();
 
+        this->setCursorLock(true);
         this->last_frame = NOW();
         this->last_second = NOW();
 
@@ -238,6 +228,12 @@ public:
         return (float)this->frame_delta / NS_PER_SECOND;
     }
 
+    void setCursorLock(bool locked) {
+        this->cursorLocked = locked;
+        glfwSetInputMode(this->handle, GLFW_CURSOR,
+                         !this->cursorLocked ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
+    }
+
 protected:
     /// The window is not visible until after this function is called
     virtual void OnLoad() = 0;
@@ -261,13 +257,11 @@ protected:
 
     virtual void OnResize() = 0;
 
-    virtual void OnKeyPress() = 0;
+    virtual void OnKeyPress(int key, int action) = 0;
 
-    void ToggleCursorLock() const {
-        glfwSetInputMode(this->handle, GLFW_CURSOR,
-                         glfwGetInputMode(this->handle, GLFW_CURSOR) == GLFW_CURSOR_NORMAL
-                         ? GLFW_CURSOR_DISABLED
-                         : GLFW_CURSOR_NORMAL);
+    void ToggleCursorLock() {
+        this->cursorLocked = glfwGetInputMode(this->handle, GLFW_CURSOR) != GLFW_CURSOR_NORMAL;     // get current state
+        this->setCursorLock(!this->cursorLocked);
     }
 };
 

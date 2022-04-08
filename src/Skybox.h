@@ -9,8 +9,6 @@
 #include "objects/Texture.h"
 #include "Image.h"
 
-#include "GLUtils.h"
-
 class Skybox {
 private:
     VertexArray vao;

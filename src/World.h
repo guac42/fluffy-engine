@@ -5,6 +5,7 @@
 
 #include <bullet/btBulletDynamicsCommon.h>
 #include <bullet/btBulletCollisionCommon.h>
+#include "DebugDraw.h"
 #include "Player.h"
 #include "Client.h"
 
@@ -14,10 +15,10 @@ private:
     btCollisionDispatcher* dispatcher;
     btBroadphaseInterface* overlappingPairCache;
     btSequentialImpulseConstraintSolver* solver;
-    btDiscreteDynamicsWorld *dynamicsWorld;
+    btDiscreteDynamicsWorld* dynamicsWorld;
 
-    btAlignedObjectArray<btCollisionShape*> collisionShapes;
-    std::vector<Player*> players;
+    std::vector<Thing*> things;
+    DebugDraw* debugDraw;
 
 public:
     World() {
@@ -29,11 +30,14 @@ public:
         this->dynamicsWorld = new btDiscreteDynamicsWorld(this->dispatcher, this->overlappingPairCache, this->solver, this->collisionConfiguration);
         this->dynamicsWorld->setGravity(btVector3(0, -10, 0));
 
+#ifdef DEBUG
+        this->debugDraw = new DebugDraw();
+        this->dynamicsWorld->setDebugDrawer(this->debugDraw);
+#endif
+
         // Add ground shape
         {
             btCollisionShape *groundShape = new btStaticPlaneShape(btVector3(0., 1., 0.), btScalar(0.));
-            this->collisionShapes.push_back(groundShape);
-
             btTransform groundTransform;
             groundTransform.setIdentity();
 
@@ -45,24 +49,33 @@ public:
             //add the body to the dynamics world
             this->dynamicsWorld->addRigidBody(body);
         }
-
     }
 
-    void addPlayer(Player *player) {
-        this->dynamicsWorld->addRigidBody(player->getBody());
-        players.push_back(player);
+    void addThing(Thing *thing) {
+        if (thing->getBody() == nullptr) {
+            printf("ERROR: Thing has null rigid body\n");
+            return;
+        }
+        this->dynamicsWorld->addRigidBody(thing->getBody());
+        this->things.push_back(thing);
     }
 
     void updateWorld(float delta) {
+        this->dynamicsWorld->debugDrawWorld();
         this->dynamicsWorld->stepSimulation(delta); // Physics world step
 
-        for (const auto &player : this->players)
-            player->update();
+        for (const auto &thing : this->things)
+            thing->updateTransform();
 
     }
 
+#ifdef DEBUG
+    void renderDebug(Camera* camera) {
+        this->debugDraw->render(camera);
+    }
+#endif
+
     virtual ~World() {
-        printf("Delete World\n");
         int i;
         // remove bodies from world and delete them
         for (i = dynamicsWorld->getNumCollisionObjects() - 1; i >= 0; i--)
@@ -75,14 +88,6 @@ public:
             }
             dynamicsWorld->removeCollisionObject(obj);
             delete obj;
-        }
-
-        // delete collision shapes
-        for (i = 0; i < collisionShapes.size(); i++)
-        {
-            btCollisionShape* shape = collisionShapes[i];
-            collisionShapes[i] = 0;
-            delete shape;
         }
 
         delete dynamicsWorld;

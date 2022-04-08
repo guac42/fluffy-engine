@@ -8,20 +8,23 @@
 class Client : public Player, public Camera {
 private:
     btVector3 acceleration;
-    const float movementAcc = 5.f;
-    bool moved = false, onGround = false;
+    const float movementAcc = 5.f, jumpImpulse = 8.f;
+    bool moved = false, onGround = false, jumped = false;
 
     void updateAcceleration(Window *game) {
         btVector3 forward = btVector3(Camera::front.x, 0, Camera::front.z),
                 right = btVector3(Camera::right.x, 0, Camera::right.z);
 
-#define IS_DOWN(x) ((float)game->keyboardManager.isKeyDown(x))
+#define IS_DOWN(x) (game->keyboardManager.isKeyDown(x))
 
+        //TODO: should be isDown and check if on ground
+        this->jumped = game->keyboardManager.isKeyDown(GLFW_KEY_SPACE);
+        //printf("Jumped: %d\n", game->keyboardManager.keys[GLFW_KEY_SPACE] ^ 0x00000010);
         this->acceleration =
-                (IS_DOWN(GLFW_KEY_W) * forward) -
-                (IS_DOWN(GLFW_KEY_S) * forward) +
-                (IS_DOWN(GLFW_KEY_A) * right) -
-                (IS_DOWN(GLFW_KEY_D) * right);
+                ((float)IS_DOWN(GLFW_KEY_W) * forward) -
+                ((float)IS_DOWN(GLFW_KEY_S) * forward) +
+                ((float)IS_DOWN(GLFW_KEY_A) * right) -
+                ((float)IS_DOWN(GLFW_KEY_D) * right);
         this->moved = !this->acceleration.isZero();
         if (this->moved)
             this->acceleration = this->movementAcc * this->acceleration.normalize();
@@ -34,18 +37,20 @@ public:
     }
 
     /**
-     * Update rotation and input
-     * Call before world is updated
-     *
-     * @param window window object for player
-     * @param delta
+     * Update camera look-vectors
+     * @param window to capture inputs
      */
-    void updateInputs(Window *window) {
-        Camera::update(window);
+    void updateFrame(Window *window) override {
+        if (!window->cursorLocked) return;   // Don't update if in Ui
+        Camera::updateFrame(window);
         this->updateAcceleration(window);
         if (this->moved) {
-            this->playerBody->activate();
-            this->playerBody->applyCentralForce(this->acceleration);
+            this->rigidBody->activate();
+            this->rigidBody->applyCentralForce(this->acceleration);
+        }
+        if (this->jumped) {
+            this->rigidBody->activate();
+            this->rigidBody->applyCentralImpulse(btVector3(0.f, this->jumpImpulse, 0.f));
         }
     }
 
@@ -53,9 +58,13 @@ public:
      * Update the view Matrix
      * Call after world is updated
      */
-    void update() override {
-        Player::update();
+    void updateTransform() override {
+        Thing::updateTransform();
         Camera::updateView(this->position);
+    }
+
+    void resize(Window* window) {
+        Camera::resize(window->width, window->height);
     }
 };
 
