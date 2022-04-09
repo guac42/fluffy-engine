@@ -10,6 +10,7 @@
 #include "objects/ShaderProgram.h"
 #include "objects/VertexArray.h"
 #include "World.h"
+#include "Client.h"
 #include "Ui.h"
 
 class GameWindow : public Window {
@@ -19,7 +20,6 @@ public:
     Skybox* skybox;
     World* world;
     Client* client;
-    Ui* ui;
 
     GameWindow()
     : Window("Game Frame") {
@@ -48,14 +48,14 @@ public:
 
         skybox = new Skybox("./resources/blue.png");
 
-        client = new Client(glm::vec3(0.f, 1.f, 0.f));
-        client->resize(this);
-
         world = new World();
+
+        client = new Client(this, world);
+        client->setPosition(glm::vec3(0.f, 1.f, 0.f));
+
         world->addThing(client);
 
-        Ui::InitImGui(Window::handle);
-        ui = new Ui();
+        Ui::InitImGui(this);
 
         program = new Program({new Shader(Shader::Vertex, "../resources/solid.vert"),
                                new Shader(Shader::Fragment, "../resources/solid.frag")});
@@ -72,11 +72,14 @@ public:
     }
 
     void OnUpdateFrame() override {
-        this->ui->updateFrame(this);
-        this->client->updateFrame(this);
+        Ui::preUpdateFrame();
+        this->client->updateFrame();
+        this->client->updateGui();
 
-        // Updated last
+        // Updated after physics objects
         this->world->updateWorld(this->deltaTime());
+        // Updated after gui implementations
+        Ui::postUpdateFrame();
         Window::OnUpdateFrame();
     }
 
@@ -92,10 +95,10 @@ public:
         vao->Bind();
         glDrawArrays(GL_TRIANGLES, 0, 3);
 #ifdef DEBUG
-        //this->world->renderDebug(this->client);
+        this->world->renderDebug(this->client);
 #endif
         this->skybox->Render(this->client->getProjection(), this->client->getView());
-        this->ui->render();
+        Ui::render();
     }
 
     void OnGameTick() override {
@@ -104,7 +107,7 @@ public:
     }
 
     void OnResize() override {
-        client->resize(this);
+        client->resize();
     }
 
     void OnKeyPress(int key, int action) override {
@@ -112,7 +115,7 @@ public:
             case GLFW_KEY_ESCAPE:
                 if (action != GLFW_PRESS) break;
                 Window::ToggleCursorLock(); // Updates Window::cursorLocked
-                this->ui->visible(!Window::cursorLocked); // If cursor is NOT locked show Ui
+                Ui::visible(!Window::cursorLocked); // If cursor is NOT locked show Ui
                 break;
         }
     }

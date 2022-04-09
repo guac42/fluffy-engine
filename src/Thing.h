@@ -7,10 +7,10 @@
 
 class Thing {
 protected:
-    glm::vec3 position;
     // Physics stuff
     btCollisionShape *collisionShape;
     btRigidBody *rigidBody;
+    btTransform transform;
     // Rendering stuff
     VertexArray *vao;
     Program *program;
@@ -22,11 +22,20 @@ public:
      * Update the position, etc.
      */
     virtual void updateTransform() {
-        btTransform transform;
         this->rigidBody->getMotionState()->getWorldTransform(transform);
-        this->position.x = transform.getOrigin().getX();
-        this->position.y = transform.getOrigin().getY();
-        this->position.z = transform.getOrigin().getZ();
+    }
+
+    void setTransform() {
+        this->rigidBody->getMotionState()->setWorldTransform(transform);
+    }
+
+    glm::vec3 getPosition() {
+        return (glm::vec3&)transform.getOrigin().m_floats;
+    }
+
+    virtual void setPosition(const glm::vec3& position) {
+        transform.setOrigin((btVector3&)position);
+        this->setTransform();
     }
 
     btRigidBody* getBody() {
@@ -35,7 +44,6 @@ public:
 
     ~Thing() {
         delete rigidBody->getMotionState();
-        delete collisionShape;
         delete rigidBody;
         delete vao;
     }

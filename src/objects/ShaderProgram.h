@@ -66,7 +66,6 @@ public:
     }
 
     virtual ~Shader() {
-        printf("Delete Shader (%d)\n", this->id);
         glDeleteShader(this->id);
         this->id = -1;
     }

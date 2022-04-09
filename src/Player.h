@@ -8,33 +8,33 @@
 
 class Player : public Thing {
 private:
+    const float radius = .3f, height = .6f;
     std::string name;
 
-public:
-    Player(const glm::vec3& position) {
-        Thing::position = position;
-    }
+protected:
+    const float verticalOffset = height * .5f + radius;
 
     /**
      * Initialize bodies
      */
     void initializeBody() override {
-        this->collisionShape = new btSphereShape(btScalar(0.6));
+        this->collisionShape = new btCapsuleShape(radius, height);
 
-        btTransform startTransform;
-        startTransform.setIdentity();
-        startTransform.setOrigin(btVector3(Thing::position.x, Thing::position.y, Thing::position.z));
+        // Default player position
+        this->transform.setIdentity();
+        this->transform.setOrigin(btVector3(0.f, 1.f, 0.f));
 
         btScalar mass(1.f);
         btVector3 localInertia(0, 0, 0);
         this->collisionShape->calculateLocalInertia(mass, localInertia);
 
         //using motionstate is recommended, it provides interpolation capabilities, and only synchronizes 'active' objects
-        btDefaultMotionState *myMotionState = new btDefaultMotionState(startTransform);
+        btDefaultMotionState *myMotionState = new btDefaultMotionState(this->transform);
         btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, myMotionState, this->collisionShape, localInertia);
+        rbInfo.m_friction = 0.7;
+
         this->rigidBody = new btRigidBody(rbInfo);
         this->rigidBody->setAngularFactor(btScalar(0.));
-        this->rigidBody->setDamping(btScalar(.8), btScalar(0.));
 
         // Could disable deactivation, but might be less efficient
         //this->rigidBody->setActivationState(DISABLE_DEACTIVATION);

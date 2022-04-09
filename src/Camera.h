@@ -9,23 +9,19 @@
 
 class Camera {
 protected:
-    glm::vec3 front, right, up;
-    float mouseSensitivity = 0.3f;
+    glm::vec3 front, right, up, cameraOffset;
+    float fov = 90.f, mouseSensitivity = 0.3f;
 
-    explicit Camera(const glm::vec3& position, float yaw = 90.0f, float pitch = 0.0f) {
-        this->yaw = yaw;
-        this->pitch = pitch;
-
+    explicit Camera() {
         this->front = glm::normalize(glm::vec3(
                 std::cos(glm::radians(this->yaw)) * std::cos(glm::radians(this->pitch)),
                 std::sin(glm::radians(this->pitch)),
                 std::sin(glm::radians(this->yaw)) * std::cos(glm::radians(this->pitch))
         ));
-
         this->right = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), this->front));
         this->up = glm::normalize(glm::cross(this->front, this->right));
-
-        this->view = glm::lookAt(position, position + this->front, this->up);
+        this->cameraOffset = glm::vec3(0.f);
+        this->cameraOffset.y = .3f;
     }
 
     /**
@@ -33,10 +29,10 @@ protected:
      * @param position position of camera
      */
     void updateView(const glm::vec3& position) {
-        this->view = glm::lookAt(position, position + front, up);
+        this->view = glm::lookAt(position + this->cameraOffset, position + this->cameraOffset + this->front, this->up);
     }
 
-    virtual void updateFrame(Window *game) {
+    void updateFrame(Window *game) {
         glm::vec2 mouseDelta = game->mouseManager.delta;
         yaw += mouseDelta.x * mouseSensitivity;
         pitch -= mouseDelta.y * mouseSensitivity;
@@ -49,13 +45,12 @@ protected:
                 sin(glm::radians(this->pitch)),
                 sin(glm::radians(this->yaw)) * cos(glm::radians(this->pitch))
         ));
-
         this->right = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), this->front));
         this->up = glm::normalize(glm::cross(this->front, this->right));
     }
 
     void resize(int width, int height) {
-        this->projection = glm::perspective(glm::radians(90.0f), (float)width/(float)height, 0.01f, 100.0f);
+        this->projection = glm::perspective(glm::radians(this->fov), (float)width/(float)height, 0.01f, 100.0f);
     }
 
 public:
@@ -76,7 +71,7 @@ public:
     }
 
 private:
-    float yaw, pitch;
+    float yaw = 90.f, pitch = 0.f;
     glm::mat4 view, projection;
 };
 

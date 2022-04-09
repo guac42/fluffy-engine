@@ -24,6 +24,9 @@
 #ifndef KB_QUIT
 #define KB_QUIT GLFW_KEY_Q
 #endif
+#ifndef GL_LOG_SEVERITY
+#define GL_LOG_SEVERITY GL_DEBUG_SEVERITY_MEDIUM
+#endif
 
 #define GetWindow(handle) ((Window*)glfwGetWindowUserPointer(handle))
 
@@ -46,13 +49,34 @@ private:
     }
 
 #ifdef DEBUG
+#define CASE_TO_STRING(str, _case) case _case: str = #_case; break;
+    static void GLAPIENTRY _gl_debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam) {
+        if (severity > GL_LOG_SEVERITY || severity < GL_DEBUG_SEVERITY_HIGH) return;
 
-    static void GLAPIENTRY _gl_error_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam) {
-        fprintf( stderr, "GLError: %s type = 0x%x, severity = 0x%x, message = %s\n",
-                 ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
-                 type, severity, message );
+        const char* t = "Unknown";
+        switch (type) {
+            CASE_TO_STRING(t, GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR)
+            CASE_TO_STRING(t, GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR)
+            CASE_TO_STRING(t, GL_DEBUG_TYPE_PERFORMANCE)
+            CASE_TO_STRING(t, GL_DEBUG_TYPE_PORTABILITY)
+            CASE_TO_STRING(t, GL_DEBUG_TYPE_PUSH_GROUP)
+            CASE_TO_STRING(t, GL_DEBUG_TYPE_POP_GROUP)
+            CASE_TO_STRING(t, GL_DEBUG_TYPE_MARKER)
+            CASE_TO_STRING(t, GL_DEBUG_TYPE_ERROR)
+            CASE_TO_STRING(t, GL_DEBUG_TYPE_OTHER)
+        }
+
+        const char* s = "Unknown";
+        switch (severity) {
+            CASE_TO_STRING(s, GL_DEBUG_SEVERITY_NOTIFICATION)
+            CASE_TO_STRING(s, GL_DEBUG_SEVERITY_MEDIUM)
+            CASE_TO_STRING(s, GL_DEBUG_SEVERITY_HIGH)
+            CASE_TO_STRING(s, GL_DEBUG_SEVERITY_LOW)
+        }
+
+        fprintf(stderr, "GLDebug: type = %s, severity = %s\n\t%s\n",
+                 t, s, message);
     }
-
 #endif
     
     static void _key_callback(GLFWwindow *handle, int key, int scancode, int action, int mods) {
@@ -166,7 +190,7 @@ public:
 
 #ifdef DEBUG
         glEnable(GL_DEBUG_OUTPUT);
-        glDebugMessageCallback(_gl_error_callback, nullptr);
+        glDebugMessageCallback(_gl_debug_callback, nullptr);
 #endif
 
         glfwGetFramebufferSize(this->handle, &this->width, &this->height);

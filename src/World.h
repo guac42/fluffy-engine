@@ -6,8 +6,7 @@
 #include <bullet/btBulletDynamicsCommon.h>
 #include <bullet/btBulletCollisionCommon.h>
 #include "DebugDraw.h"
-#include "Player.h"
-#include "Client.h"
+#include "Thing.h"
 
 class World {
 private:
@@ -37,14 +36,14 @@ public:
 
         // Add ground shape
         {
-            btCollisionShape *groundShape = new btStaticPlaneShape(btVector3(0., 1., 0.), btScalar(0.));
+            btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0., 1., 0.), btScalar(0.));
             btTransform groundTransform;
             groundTransform.setIdentity();
 
             //using motionstate is optional, it provides interpolation capabilities, and only synchronizes 'active' objects
-            btDefaultMotionState *myMotionState = new btDefaultMotionState(groundTransform);
+            btDefaultMotionState* myMotionState = new btDefaultMotionState(groundTransform);
             btRigidBody::btRigidBodyConstructionInfo rbInfo(btScalar(0.), myMotionState, groundShape);
-            btRigidBody *body = new btRigidBody(rbInfo);
+            btRigidBody* body = new btRigidBody(rbInfo);
 
             //add the body to the dynamics world
             this->dynamicsWorld->addRigidBody(body);
@@ -61,8 +60,8 @@ public:
     }
 
     void updateWorld(float delta) {
-        this->dynamicsWorld->debugDrawWorld();
         this->dynamicsWorld->stepSimulation(delta); // Physics world step
+        this->dynamicsWorld->debugDrawWorld();
 
         for (const auto &thing : this->things)
             thing->updateTransform();
@@ -74,6 +73,10 @@ public:
         this->debugDraw->render(camera);
     }
 #endif
+
+    btDynamicsWorld* getWorld() {
+        return this->dynamicsWorld;
+    }
 
     virtual ~World() {
         int i;
