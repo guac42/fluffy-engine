@@ -1,7 +1,7 @@
 #ifndef GAMEFRAME_VERTEXARRAY_H
 #define GAMEFRAME_VERTEXARRAY_H
 
-#include <glad/glad.h>
+#include "glad/glad.h"
 
 #include "Buffer.h"
 
@@ -37,5 +37,7 @@ public:
         this->id = -1;
     }
 };
+
+GLuint VertexArray::lastID = -1;
 
 #endif //GAMEFRAME_VERTEXARRAY_H

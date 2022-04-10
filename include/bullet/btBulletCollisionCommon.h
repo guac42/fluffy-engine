@@ -50,6 +50,7 @@ subject to the following restrictions:
 
 ///Dispatching and generation of collision pairs (broadphase)
 #include "BulletCollision/CollisionDispatch/btCollisionDispatcher.h"
+#include "BulletCollision/CollisionDispatch/btGhostObject.h"
 #include "BulletCollision/BroadphaseCollision/btSimpleBroadphase.h"
 #include "BulletCollision/BroadphaseCollision/btAxisSweep3.h"
 #include "BulletCollision/BroadphaseCollision/btDbvtBroadphase.h"

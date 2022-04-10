@@ -48,6 +48,15 @@ public:
             //add the body to the dynamics world
             this->dynamicsWorld->addRigidBody(body);
         }
+
+        btCollisionShape* boxShape = new btBoxShape(btVector3(.5f, .5f, .5f));
+        btTransform transform;
+        transform.setIdentity();
+        transform.setOrigin(btVector3(3.f, .5f, 3.f));
+
+        btRigidBody::btRigidBodyConstructionInfo info(0.f, nullptr, boxShape);
+        btRigidBody* body = new btRigidBody(info);
+        this->dynamicsWorld->addRigidBody(body);
     }
 
     void addThing(Thing *thing) {
@@ -79,16 +88,14 @@ public:
     }
 
     virtual ~World() {
-        int i;
         // remove bodies from world and delete them
-        for (i = dynamicsWorld->getNumCollisionObjects() - 1; i >= 0; i--)
-        {
+        for (int i = dynamicsWorld->getNumCollisionObjects() - 1; i >= 0; i--) {
             btCollisionObject* obj = dynamicsWorld->getCollisionObjectArray()[i];
             btRigidBody* body = btRigidBody::upcast(obj);
+
             if (body && body->getMotionState())
-            {
                 delete body->getMotionState();
-            }
+
             dynamicsWorld->removeCollisionObject(obj);
             delete obj;
         }

@@ -61,11 +61,11 @@ public:
     }
 
     void drawContactPoint(const btVector3& PointOnB, const btVector3& normalOnB, btScalar distance, int lifeTime, const btVector3& color) override {
-
+        drawLine(PointOnB, normalOnB * distance, color);
     }
 
     void reportErrorWarning(const char* warningString) override {
-
+        fprintf(stderr, "[WARNING] %s\n", warningString);
     }
 
     void draw3dText(const btVector3& location, const char* textString) override {

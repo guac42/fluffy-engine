@@ -1,7 +1,7 @@
 #ifndef GAMEFRAME_TEXTURE_H
 #define GAMEFRAME_TEXTURE_H
 
-#include <glad/glad.h>
+#include "glad/glad.h"
 
 class Texture {
 public:

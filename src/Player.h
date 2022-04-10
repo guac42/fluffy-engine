@@ -8,10 +8,10 @@
 
 class Player : public Thing {
 private:
-    const float radius = .3f, height = .6f;
     std::string name;
 
 protected:
+    const float radius = .3f, height = .6f;
     const float verticalOffset = height * .5f + radius;
 
     /**
@@ -31,13 +31,13 @@ protected:
         //using motionstate is recommended, it provides interpolation capabilities, and only synchronizes 'active' objects
         btDefaultMotionState *myMotionState = new btDefaultMotionState(this->transform);
         btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, myMotionState, this->collisionShape, localInertia);
-        rbInfo.m_friction = 0.7;
+        rbInfo.m_friction = 0.f;
+        rbInfo.m_restitution = 0.f;
+        rbInfo.m_linearDamping = 0.f;
 
         this->rigidBody = new btRigidBody(rbInfo);
         this->rigidBody->setAngularFactor(btScalar(0.));
-
-        // Could disable deactivation, but might be less efficient
-        //this->rigidBody->setActivationState(DISABLE_DEACTIVATION);
+        this->rigidBody->setActivationState(DISABLE_DEACTIVATION);
     }
 };
 

@@ -6,11 +6,13 @@
 
 #include "gfx/Window.h"
 #include "Camera.h"
-#include "Skybox.h"
-#include "objects/ShaderProgram.h"
-#include "objects/VertexArray.h"
+#include "rendering/Skybox.h"
+#include "rendering/Text.h"
+#include "rendering/objects/ShaderProgram.h"
+#include "rendering/objects/VertexArray.h"
 #include "World.h"
 #include "Client.h"
+#include "Config.h"
 #include "Ui.h"
 
 class GameWindow : public Window {
@@ -20,9 +22,10 @@ public:
     Skybox* skybox;
     World* world;
     Client* client;
+    Text* text;
 
     GameWindow()
-    : Window("Game Frame") {
+    : Window("Fluffy Engine") {
 
     }
 
@@ -54,6 +57,9 @@ public:
         client->setPosition(glm::vec3(0.f, 1.f, 0.f));
 
         world->addThing(client);
+
+        text = new Text(client);
+        text->initFont();
 
         Ui::InitImGui(this);
 
@@ -88,6 +94,7 @@ public:
         //Child implementation
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        this->skybox->Render(this->client->getProjection(), this->client->getView());
         program->Use();
         program->Upload("m", glm::mat4(1));
         program->Upload("v", this->client->getView());
@@ -97,7 +104,7 @@ public:
 #ifdef DEBUG
         this->world->renderDebug(this->client);
 #endif
-        this->skybox->Render(this->client->getProjection(), this->client->getView());
+        text->display(30, 30, glm::vec3(0), "Pee Pee");
         Ui::render();
     }
 

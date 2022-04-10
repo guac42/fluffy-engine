@@ -51,14 +51,14 @@ public:
         static ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
         // Our window
-        if (ImGui::Begin("Hello, world!", &show)) {       // Create a window called "Hello, world!" and append into it.
+        if (ImGui::Begin("Hello, world!", &show)) {                                             // Create a window called "Hello, world!" and append into it.
 
-            ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+            ImGui::Text("This is some useful text.");                                           // Display some text (you can use a format strings too)
 
-            ImGui::SliderFloat("float", &f, 0.0f, 1.0f, nullptr, ImGuiSliderFlags_AlwaysClamp);            // Edit 1 float using a slider from 0.0f to 1.0f
-            ImGui::ColorEdit3("clear color", (float *) &clear_color); // Edit 3 floats representing a color
+            ImGui::SliderFloat("float", &f, 0.0f, 1.0f, nullptr, ImGuiSliderFlags_AlwaysClamp); // Edit 1 float using a slider from 0.0f to 1.0f
+            ImGui::ColorEdit3("clear color", (float *) &clear_color);                           // Edit 3 floats representing a color
 
-            if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+            if (ImGui::Button("Button"))                                                        // Buttons return true when clicked (most widgets return true when edited/activated)
                 counter++;
             ImGui::SameLine();
             ImGui::Text("counter = %d", counter);
@@ -69,11 +69,10 @@ public:
         ImGui::End();
         frameActive = false;
 
-        // Updates ImGui::DrawData
-        ImGui::Render();
+        ImGui::Render();                    // Updates ImGui::DrawData
 
         if (!show)
-            window->setCursorLock(!show); // If Ui is not shown lock cursor
+            window->setCursorLock(!show);   // If Ui is not shown lock cursor
     }
 
     /**

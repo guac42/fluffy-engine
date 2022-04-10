@@ -6,11 +6,12 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include "gfx/Window.h"
+#include "Config.h"
 
 class Camera {
 protected:
     glm::vec3 front, right, up, cameraOffset;
-    float fov = 90.f, mouseSensitivity = 0.3f;
+    float mouseSensitivity = 0.3f;
 
     explicit Camera() {
         this->front = glm::normalize(glm::vec3(
@@ -50,7 +51,8 @@ protected:
     }
 
     void resize(int width, int height) {
-        this->projection = glm::perspective(glm::radians(this->fov), (float)width/(float)height, 0.01f, 100.0f);
+        this->ortho = glm::ortho(0.0f, (float)width, (float)height, 0.0f);
+        this->projection = glm::perspective(glm::radians(Config::FOV), (float)width/(float)height, 0.01f, 100.0f);
     }
 
 public:
@@ -60,6 +62,10 @@ public:
 
     inline glm::mat4 getProjection() const {
         return this->projection;
+    }
+
+    inline glm::mat4 getOthro() const {
+        return this->ortho;
     }
 
     inline float getYaw() const {
@@ -72,7 +78,7 @@ public:
 
 private:
     float yaw = 90.f, pitch = 0.f;
-    glm::mat4 view, projection;
+    glm::mat4 view, projection, ortho;
 };
 
 #endif //PATHTRACER_CAMERA_H

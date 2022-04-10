@@ -1,7 +1,7 @@
 #ifndef GAMEFRAME_BUFFER_H
 #define GAMEFRAME_BUFFER_H
 
-#include <glad/glad.h>
+#include "glad/glad.h"
 
 class Buffer {
 private:

@@ -4,8 +4,8 @@
 #include <fstream>
 #include <vector>
 
-#include <glad/glad.h>
-#include <glm/glm.hpp>
+#include "glad/glad.h"
+#include "glm/glm.hpp"
 
 #define UPLOAD_VECTOR(n)                                                        \
 void Upload(int location, const glm::vec##n& vec##n) const {                    \
@@ -139,5 +139,7 @@ public:
         this->id = -1;
     }
 };
+
+GLuint Program::lastID = -1;
 
 #endif //GAMEFRAME_SHADERPROGRAM_H

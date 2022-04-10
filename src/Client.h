@@ -17,9 +17,12 @@ private:
     Window* window;
     World* world;
     const float accelerationConstant = 5.f, jumpImpulse = 4.f;
-    bool onGround = false;
+    bool onGround = false, hittingWall = false;
     int jumpDelay = 100;
     unsigned long long lastJump = 0;
+
+    btPairCachingGhostObject* ghostObject;
+    std::vector<btVector3> hitNormals;
 
     // Ui
     bool show = true;
@@ -30,16 +33,17 @@ private:
     {
     private:
         btRigidBody* pBody;
+        btPairCachingGhostObject* pGhost;
 
     public:
-        explicit IgnoreBodyCast(btRigidBody* pBody)
+        explicit IgnoreBodyCast(btRigidBody* pBody, btPairCachingGhostObject* pGhost)
                 : btCollisionWorld::ClosestRayResultCallback(btVector3(0.0, 0.0, 0.0), btVector3(0.0, 0.0, 0.0)),
-                  pBody(pBody)
+                  pBody(pBody), pGhost(pGhost)
         {
         }
 
         btScalar addSingleResult(btCollisionWorld::LocalRayResult& rayResult, bool normalInWorldSpace) override {
-            if(rayResult.m_collisionObject == pBody)
+            if (rayResult.m_collisionObject == pBody || rayResult.m_collisionObject == pGhost)
                 return 1.0f;
 
             return ClosestRayResultCallback::addSingleResult(rayResult, normalInWorldSpace);
@@ -64,9 +68,55 @@ private:
         return !acceleration.isZero();
     }
 
+    void parseContacts() {
+        btManifoldArray manifoldArray;
+        btBroadphasePairArray &pairArray = ghostObject->getOverlappingPairCache()->getOverlappingPairArray();
+
+        // Set false now, may be set true in test
+        hittingWall = false;
+        hitNormals.clear();
+
+        //printf("Size: %d\n", ghostObject->getOverlappingPairCache()->getNumOverlappingPairs());
+
+        for(int i = 0; i < pairArray.size(); i++) {
+            manifoldArray.clear();
+            const btBroadphasePair &pair = pairArray[i];
+            btBroadphasePair* collisionPair = world->getWorld()->getPairCache()->findPair(pair.m_pProxy0, pair.m_pProxy1);
+
+            if (collisionPair == nullptr)
+                continue;
+
+            if (collisionPair->m_algorithm != nullptr)
+                collisionPair->m_algorithm->getAllContactManifolds(manifoldArray);
+
+            for (int j = 0; j < manifoldArray.size(); j++) {
+                btPersistentManifold* pManifold = manifoldArray[j];
+
+                // Skip the rigid body the ghost monitors
+                if (pManifold->getBody0() == this->rigidBody)
+                    continue;
+
+                for (int p = 0; p < pManifold->getNumContacts(); p++) {
+                    const btManifoldPoint &point = pManifold->getContactPoint(p);
+                    if (point.getDistance() < 0.0f) {
+                        const btVector3 &ptB = point.getPositionWorldOnB();
+
+                        // If point is in rounded bottom region of capsule shape, it is on the ground
+                        if(ptB.getY() < transform.getOrigin().getY() - this->height * 0.5f)
+                            onGround = true;
+                        else {
+                            hittingWall = true;
+                            hitNormals.push_back(point.m_normalWorldOnB);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     void groundTest() {
         const float testOffset = 0.07f;
-        IgnoreBodyCast callback(this->rigidBody);
+        IgnoreBodyCast callback(this->rigidBody, this->ghostObject);
         world->getWorld()->rayTest(this->transform.getOrigin(),
                                    this->transform.getOrigin()-btVector3(0.f, this->verticalOffset + testOffset, 0.f),
                                    callback);
@@ -78,6 +128,10 @@ public:
             window(window), world(world) {
         // Setup physics
         Player::initializeBody();
+        ghostObject = new btPairCachingGhostObject();
+        ghostObject->setCollisionShape(this->collisionShape);
+        ghostObject->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
+        world->getWorld()->addCollisionObject(ghostObject, btBroadphaseProxy::KinematicFilter, btBroadphaseProxy::StaticFilter | btBroadphaseProxy::DefaultFilter);
 
         // Set default start position
         Thing::setPosition(glm::vec3(0.f, 1.f, 0.f));
@@ -98,7 +152,9 @@ public:
         if (!window->cursorLocked) return;   // Don't update if in Ui
         Camera::updateFrame(this->window);
 
-        this->groundTest();
+        //this->groundTest();
+        this->ghostObject->setWorldTransform(this->transform);
+        this->parseContacts();
 
         btVector3 acceleration;
         if (this->getAcceleration(acceleration)) {
@@ -118,7 +174,7 @@ public:
         if (!Ui::isActive()) return; // Don't push ui if not active
         if (ImGui::Begin("Client", &this->show)) {
             if (ImGui::SliderFloat("Friction", &this->friction, 0.0f, 1.0f, nullptr, ImGuiSliderFlags_AlwaysClamp)) {
-                this->rigidBody->setFriction(this->friction);
+                //this->rigidBody->setFriction(this->friction);
             }
         }
         ImGui::End();

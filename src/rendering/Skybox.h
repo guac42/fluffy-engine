@@ -1,8 +1,8 @@
 #ifndef GAMEFRAME_SKYBOX_H
 #define GAMEFRAME_SKYBOX_H
 
-#include <glad/glad.h>
-#include <glm/glm.hpp>
+#include "glad/glad.h"
+#include "glm/glm.hpp"
 
 #include "objects/ShaderProgram.h"
 #include "objects/VertexArray.h"
