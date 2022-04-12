@@ -3,6 +3,7 @@ project(GameFrame)
 
 set(CMAKE_CXX_STANDARD 20)
 
+include_directories(include/bullet)
 include_directories(include)
 
 file(GLOB_RECURSE SOURCE
@@ -17,10 +18,10 @@ if (CMAKE_BUILD_TYPE MATCHES Debug)
 endif()
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-    file(GLOB LIBS
-            libs/*.a)
+    file(GLOB LIBS libs/linux/*.a)
     find_package(Threads REQUIRED)
-    target_link_libraries(Fluffy ${LIBS} ${CMAKE_DL_LIBS} Threads::Threads)
+    find_package(Bullet REQUIRED)
+    target_link_libraries(Fluffy ${LIBS} ${CMAKE_DL_LIBS} ${BULLET_LIBRARIES} Threads::Threads)
 elseif (MSVC)
     if (CMAKE_BUILD_TYPE MATCHES Debug)
         file(GLOB LIBS

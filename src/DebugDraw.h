@@ -10,10 +10,10 @@ private:
     Program* program;
     VertexArray* vao;
     int drawMode;
-    union vec3 {
-        float f[3];
+    union point {
+        float f[6];
     };
-    std::vector<vec3> points;
+    std::vector<point> points;
     float lineWidth = 2.f;
 
 public:
@@ -29,7 +29,7 @@ public:
     }
 
     void render(Camera* camera) {
-        if (this->points.size() < 1)
+        if (this->points.empty())
             return;
 
         Buffer buffer;
@@ -48,20 +48,20 @@ public:
         vao->Bind();
 
         glLineWidth(this->lineWidth);
-        glDrawArrays(GL_LINES, 0, this->points.size()/2); // Array of vertex + color
+        glDrawArrays(GL_LINES, 0, this->points.size()); // Array of vertex + color
 
         this->points.clear();
     }
 
     void drawLine(const btVector3& from, const btVector3& to, const btVector3& color) override {
-        points.push_back({from.x(), from.y(), from.z()});
-        points.push_back({color.x(), color.y(), color.z()});
-        points.push_back({to.x(), to.y(), to.z()});
-        points.push_back({color.x(), color.y(), color.z()});
+        points.push_back({from.x(), from.y(), from.z(),
+                          color.x(), color.y(), color.z()});
+        points.push_back({to.x(), to.y(), to.z(),
+                          color.x(), color.y(), color.z()});
     }
 
     void drawContactPoint(const btVector3& PointOnB, const btVector3& normalOnB, btScalar distance, int lifeTime, const btVector3& color) override {
-        drawLine(PointOnB, normalOnB * distance, color);
+        drawLine(PointOnB, PointOnB + normalOnB, color);
     }
 
     void reportErrorWarning(const char* warningString) override {

@@ -38,7 +38,7 @@ public:
         auto* ttf_buffer = (unsigned char*)malloc(1 << 20);
         auto* temp_bitmap = (unsigned char*)malloc(512 * 512);
 
-        fread(ttf_buffer, 1, 1 << 20, fopen("C:/Windows/Fonts/times.ttf", "rb"));
+        fread(ttf_buffer, 1, 1 << 20, fopen("../resources/times.ttf", "rb"));
         stbtt_BakeFontBitmap(ttf_buffer, 0, 32.0, temp_bitmap, 512, 512, 32, 96, cdata); // no guarantee this fits!
         // can free ttf_buffer at this point
         free(ttf_buffer);
@@ -66,7 +66,7 @@ public:
 
         stbtt_aligned_quad q;
         while (*text) {
-            if (*text >= 32 && *text < 128) {
+            if (*text >= 32) {
                 stbtt_GetBakedQuad(cdata, 512, 512, *text - 32, &x, &y, &q, 1);
                 float verts[] = {
                 //  x     y      tX      tY

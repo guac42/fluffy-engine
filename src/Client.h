@@ -76,7 +76,7 @@ private:
         hittingWall = false;
         hitNormals.clear();
 
-        //printf("Size: %d\n", ghostObject->getOverlappingPairCache()->getNumOverlappingPairs());
+        printf("Size: %d\n", ghostObject->getOverlappingPairCache()->getNumOverlappingPairs());
 
         for(int i = 0; i < pairArray.size(); i++) {
             manifoldArray.clear();
@@ -153,7 +153,7 @@ public:
         Camera::updateFrame(this->window);
 
         //this->groundTest();
-        this->ghostObject->setWorldTransform(this->transform);
+        //this->ghostObject->setWorldTransform(this->transform);
         this->parseContacts();
 
         btVector3 acceleration;

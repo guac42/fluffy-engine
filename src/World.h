@@ -31,6 +31,7 @@ public:
 
 #ifdef DEBUG
         this->debugDraw = new DebugDraw();
+        this->debugDraw->setDebugMode(btIDebugDraw::DebugDrawModes::DBG_DrawWireframe | btIDebugDraw::DebugDrawModes::DBG_DrawContactPoints);
         this->dynamicsWorld->setDebugDrawer(this->debugDraw);
 #endif
 
@@ -54,7 +55,8 @@ public:
         transform.setIdentity();
         transform.setOrigin(btVector3(3.f, .5f, 3.f));
 
-        btRigidBody::btRigidBodyConstructionInfo info(0.f, nullptr, boxShape);
+        btDefaultMotionState* myMotionState = new btDefaultMotionState(transform);
+        btRigidBody::btRigidBodyConstructionInfo info(0.f, myMotionState, boxShape);
         btRigidBody* body = new btRigidBody(info);
         this->dynamicsWorld->addRigidBody(body);
     }

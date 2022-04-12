@@ -49,7 +49,7 @@ private:
     }
 
 #ifdef DEBUG
-#define CASE_TO_STRING(str, _case) case _case: str = #_case; break;
+#define CASE_TO_STRING(str, _case) case _case: (str) = #_case; break;
     static void GLAPIENTRY _gl_debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam) {
         if (severity > GL_LOG_SEVERITY || severity < GL_DEBUG_SEVERITY_HIGH) return;
 
