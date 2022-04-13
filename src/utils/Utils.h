@@ -1,24 +1,27 @@
 #ifndef PATHTRACER_UTIL_H
 #define PATHTRACER_UTIL_H
 
-#include <ctime>
+#include <chrono>
 #include <thread>
 
-#define NS_PER_SECOND (1000000000)
-#define NS_PER_MS (1000000)
+constexpr float MS_PER_NS = 1.f / 1000000.f;
 
 // Basically a macro, forced inline for time efficiency
-inline static unsigned long long NOW() {
-    struct timespec ts{};
-    timespec_get(&ts, TIME_UTC);
-    return (ts.tv_sec * NS_PER_SECOND) + ts.tv_nsec;
+inline static unsigned long long NOW_NS() {
+    return std::chrono::time_point_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now())
+            .time_since_epoch()
+            .count();
+}
+
+inline static unsigned long long NOW_MS() {
+    return NOW_NS() * MS_PER_NS;
 }
 
 inline static void DELAY(unsigned long long nanos) {
-    unsigned long long start = NOW(), now = start;
+    unsigned long long start = NOW_NS(), now = start;
     while (now - start < nanos) {
         std::this_thread::yield();
-        now = NOW();
+        now = NOW_NS();
     }
 }
 

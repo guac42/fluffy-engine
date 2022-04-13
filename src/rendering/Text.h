@@ -11,6 +11,8 @@ class Text {
 private:
     Program* program;
     Camera* camera;
+    float scale = 1.f;
+    stbtt_fontinfo font;
     stbtt_bakedchar cdata[96]; // ASCII 32..126 is 95 glyphs
     GLuint fontTex, vao, vbo;
 
@@ -34,12 +36,13 @@ public:
         program->Upload("uTexture", 0);
     }
 
-    void initFont() {
+    void initFont(const std::string& file) {
         auto* ttf_buffer = (unsigned char*)malloc(1 << 20);
         auto* temp_bitmap = (unsigned char*)malloc(512 * 512);
 
-        fread(ttf_buffer, 1, 1 << 20, fopen("../resources/times.ttf", "rb"));
+        fread(ttf_buffer, 1, 1 << 20, fopen(file.c_str(), "rb"));
         stbtt_BakeFontBitmap(ttf_buffer, 0, 32.0, temp_bitmap, 512, 512, 32, 96, cdata); // no guarantee this fits!
+        //stbtt_InitFont(&font, ttf_buffer, 0);
         // can free ttf_buffer at this point
         free(ttf_buffer);
         glGenTextures(1, &fontTex);
@@ -50,7 +53,11 @@ public:
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     }
 
-    void display(float x, float y, const glm::vec3& color, const char *text) {
+    /*void setHeight(float height) {
+        this->scale = stbtt_ScaleForPixelHeight(&font, scale);
+    }*/
+
+    void display(const char *text, float x, float y, const glm::vec3& color) {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 

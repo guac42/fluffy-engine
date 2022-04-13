@@ -12,6 +12,8 @@
 #include "MouseManager.h"
 #include "../utils/Utils.h"
 
+#define NS_PER_SECOND (1000000000)
+
 #ifndef TICKS_PER_SECOND
 #define TICKS_PER_SECOND (60)
 #endif
@@ -203,13 +205,13 @@ public:
         this->OnLoad();
 
         this->setCursorLock(true);
-        this->last_frame = NOW();
-        this->last_second = NOW();
+        this->last_frame = NOW_NS();
+        this->last_second = NOW_NS();
 
         glfwShowWindow(this->handle);
 
         while (!glfwWindowShouldClose(this->handle)) {
-            const unsigned long long start = NOW();
+            const unsigned long long start = NOW_NS();
 
             this->frame_delta = start - this->last_frame;
             this->last_frame = start;
@@ -221,13 +223,13 @@ public:
                 this->ticks = 0;
                 this->last_second = start;
 
-#ifdef DEBUG
-                printf("FPS: %lld | TPS: %lld\n", this->fps, this->tps);
-#endif
+                #ifdef DEBUG
+                //printf("FPS: %lld | TPS: %lld\n", this->fps, this->tps);
+                #endif
             }
 
             // tick processing
-            const unsigned long long NS_PER_TICK = (NS_PER_SECOND / TICKS_PER_SECOND);
+            constexpr unsigned long long NS_PER_TICK = (NS_PER_SECOND / TICKS_PER_SECOND);
             unsigned long long tick_time = this->frame_delta + this->tick_remainder;
             while (tick_time > NS_PER_TICK) {
                 this->OnGameTick();
@@ -249,7 +251,8 @@ public:
     }
 
     inline float deltaTime() const {
-        return (float)this->frame_delta / NS_PER_SECOND;
+        constexpr float SECONDS_PER_NS = 1.f / 1000000000.f;
+        return (float)this->frame_delta * SECONDS_PER_NS;
     }
 
     void setCursorLock(bool locked) {

@@ -8,201 +8,284 @@
 #include "World.h"
 #include "utils/Utils.h"
 
+class IgnoreBodyAndGhostCast :
+        public btCollisionWorld::ClosestRayResultCallback {
+private:
+    btRigidBody* m_pBody;
+    btPairCachingGhostObject* m_pGhostObject;
+
+public:
+    IgnoreBodyAndGhostCast(btRigidBody* pBody, btPairCachingGhostObject* pGhostObject)
+            : btCollisionWorld::ClosestRayResultCallback(btVector3(0.0, 0.0, 0.0), btVector3(0.0, 0.0, 0.0)),
+              m_pBody(pBody), m_pGhostObject(pGhostObject)
+    {
+    }
+
+    btScalar addSingleResult(btCollisionWorld::LocalRayResult& rayResult, bool normalInWorldSpace) override {
+        if (rayResult.m_collisionObject == m_pBody || rayResult.m_collisionObject == m_pGhostObject)
+            return 1.0f;
+
+        return ClosestRayResultCallback::addSingleResult(rayResult, normalInWorldSpace);
+    }
+};
+
+// Physics adapted from:
 // https://github.com/222464/EvolvedVirtualCreaturesRepo/blob/master/VirtualCreatures/Volumetric_SDL/Source/SceneObjects/Physics/DynamicCharacterController.cpp
-// Csgo Movement: https://adrianb.io/2015/02/14/bunnyhop.html
-// Eventually want to write custom friction management
-// using ghost object to apply friction from filtered contact points
-class Client : public Player, public Camera {
+// Was unable to get the ghost object to work :/
+class Client : public Camera {
 private:
     Window* window;
     World* world;
-    const float accelerationConstant = 5.f, jumpImpulse = 4.f;
-    bool onGround = false, hittingWall = false;
-    int jumpDelay = 100;
-    unsigned long long lastJump = 0;
 
-    btPairCachingGhostObject* ghostObject;
-    std::vector<btVector3> hitNormals;
+    // All of these should be const
+    // Some aren't for debug
+    const float radius = .3f, height = .6f,
+            bottomYOffset = height * .5f + radius,
+            bottomRoundedRegionYOffset = height * .5f;
+    float accelerationConstant = 5.f;
+    float decelerationConstant = .8f;
+    float maxSpeed = 3.f;
+    float jumpImpulse = 5.f;
+    const float stepHeight = .2f;
+
+    bool hittingWall = false, onGround = false, input = false;
+
+    const int jumpRechargeTime = 200;   // Min milliseconds between jumps
+    unsigned long long msSinceJump = 0; // Milliseconds since last jump
+
+    btCollisionShape* pCollisionShape;
+    btDefaultMotionState* pMotionState;
+    btRigidBody* pRigidBody;
+    btPairCachingGhostObject* pGhostObject;
+
+    btVector3 manualVelocity, previousPosition;
+    btTransform motionTransform;
+
+    std::vector<btVector3> surfaceHitNormals;
 
     // Ui
     bool show = true;
-    float friction;
 
-    class IgnoreBodyCast :
-            public btCollisionWorld::ClosestRayResultCallback
-    {
-    private:
-        btRigidBody* pBody;
-        btPairCachingGhostObject* pGhost;
-
-    public:
-        explicit IgnoreBodyCast(btRigidBody* pBody, btPairCachingGhostObject* pGhost)
-                : btCollisionWorld::ClosestRayResultCallback(btVector3(0.0, 0.0, 0.0), btVector3(0.0, 0.0, 0.0)),
-                  pBody(pBody), pGhost(pGhost)
-        {
-        }
-
-        btScalar addSingleResult(btCollisionWorld::LocalRayResult& rayResult, bool normalInWorldSpace) override {
-            if (rayResult.m_collisionObject == pBody || rayResult.m_collisionObject == pGhost)
-                return 1.0f;
-
-            return ClosestRayResultCallback::addSingleResult(rayResult, normalInWorldSpace);
-        }
-    };
-
-    /**
-     * Calculates velocity based on user input
-     * @param acceleration where to store acceleration
-     * @return Whether or not force should be applied to the body
-     */
-    bool getAcceleration(btVector3& acceleration) {
-#define IS_DOWN(x) (this->window->keyboardManager.isKeyDown(x))
-        btVector3 forward = btVector3(Camera::front.x, 0, Camera::front.z),
-                right = btVector3(Camera::right.x, 0, Camera::right.z);
-
-        acceleration =
-                ((float)IS_DOWN(GLFW_KEY_W) * forward) -
-                ((float)IS_DOWN(GLFW_KEY_S) * forward) +
-                ((float)IS_DOWN(GLFW_KEY_A) * right) -
-                ((float)IS_DOWN(GLFW_KEY_D) * right);
-        return !acceleration.isZero();
-    }
-
-    void parseContacts() {
-        btManifoldArray manifoldArray;
-        btBroadphasePairArray &pairArray = ghostObject->getOverlappingPairCache()->getOverlappingPairArray();
+    void parseGhostContacts() {
+        btPersistentManifold** manifoldArray = world->getWorld()->getDispatcher()->getInternalManifoldPointer();
+        int numManifolds = world->getWorld()->getDispatcher()->getNumManifolds();
 
         // Set false now, may be set true in test
         hittingWall = false;
-        hitNormals.clear();
+        surfaceHitNormals.clear();
 
-        printf("Size: %d\n", ghostObject->getOverlappingPairCache()->getNumOverlappingPairs());
+        // TODO On ground is still kinda broken (prob point.getDist)
+        // For every contact in the world (horribly inefficient, but ghost doesn't work)
+        for (int i = 0; i < numManifolds; ++i) {
+            btPersistentManifold* pManifold = manifoldArray[i];
 
-        for(int i = 0; i < pairArray.size(); i++) {
-            manifoldArray.clear();
-            const btBroadphasePair &pair = pairArray[i];
-            btBroadphasePair* collisionPair = world->getWorld()->getPairCache()->findPair(pair.m_pProxy0, pair.m_pProxy1);
-
-            if (collisionPair == nullptr)
+            // If contact doesn't include body return
+            if (pManifold->getBody0() != pRigidBody && pManifold->getBody1() != pRigidBody)
                 continue;
 
-            if (collisionPair->m_algorithm != nullptr)
-                collisionPair->m_algorithm->getAllContactManifolds(manifoldArray);
-
-            for (int j = 0; j < manifoldArray.size(); j++) {
-                btPersistentManifold* pManifold = manifoldArray[j];
-
-                // Skip the rigid body the ghost monitors
-                if (pManifold->getBody0() == this->rigidBody)
-                    continue;
-
-                for (int p = 0; p < pManifold->getNumContacts(); p++) {
-                    const btManifoldPoint &point = pManifold->getContactPoint(p);
-                    if (point.getDistance() < 0.0f) {
-                        const btVector3 &ptB = point.getPositionWorldOnB();
-
-                        // If point is in rounded bottom region of capsule shape, it is on the ground
-                        if(ptB.getY() < transform.getOrigin().getY() - this->height * 0.5f)
-                            onGround = true;
-                        else {
-                            hittingWall = true;
-                            hitNormals.push_back(point.m_normalWorldOnB);
-                        }
+            for (int j = 0; j < pManifold->getNumContacts(); ++j) {
+                const btManifoldPoint &point = pManifold->getContactPoint(j);
+                // Make sure full collision in order to not over cancel velocity
+                if (point.getDistance() <= 0) {
+                    if (point.m_positionWorldOnB.getY() <
+                        motionTransform.getOrigin().getY() - bottomRoundedRegionYOffset) {
+                        onGround = true;
+                    } else {
+                        hittingWall = true;
+                        surfaceHitNormals.push_back(point.m_normalWorldOnB);
                     }
                 }
             }
         }
     }
 
-    void groundTest() {
-        const float testOffset = 0.07f;
-        IgnoreBodyCast callback(this->rigidBody, this->ghostObject);
-        world->getWorld()->rayTest(this->transform.getOrigin(),
-                                   this->transform.getOrigin()-btVector3(0.f, this->verticalOffset + testOffset, 0.f),
-                                   callback);
-        this->onGround = callback.hasHit();
+    void updatePosition() {
+        // Ray cast, ignore rigid body
+        IgnoreBodyAndGhostCast rayCallBack_bottom(pRigidBody, pGhostObject);
+        world->getWorld()->rayTest(pRigidBody->getWorldTransform().getOrigin(),
+                                   pRigidBody->getWorldTransform().getOrigin() - btVector3(0.0f, bottomYOffset + stepHeight, 0.0f),
+                                   rayCallBack_bottom);
+
+        // Bump up if hit
+        if (rayCallBack_bottom.hasHit()) {
+            float previousY = pRigidBody->getWorldTransform().getOrigin().getY();
+            pRigidBody->getWorldTransform().getOrigin().setY(previousY + (bottomYOffset + stepHeight) * (1.0f - rayCallBack_bottom.m_closestHitFraction));
+
+            btVector3 vel(pRigidBody->getLinearVelocity());
+            vel.setY(0.0f);
+            pRigidBody->setLinearVelocity(vel);
+
+            onGround = true;
+        }
+
+        float testOffset = 0.07f;
+
+        // Ray cast, ignore rigid body
+        IgnoreBodyAndGhostCast rayCallBack_top(pRigidBody, pGhostObject);
+        world->getWorld()->rayTest(pRigidBody->getWorldTransform().getOrigin(),
+                                   pRigidBody->getWorldTransform().getOrigin() + btVector3(0.0f, bottomYOffset + testOffset, 0.0f),
+                                   rayCallBack_top);
+
+        // Bump up if hit
+        if (rayCallBack_top.hasHit()) {
+            pRigidBody->getWorldTransform().setOrigin(previousPosition);
+
+            btVector3 vel(pRigidBody->getLinearVelocity());
+            vel.setY(0.0f);
+            pRigidBody->setLinearVelocity(vel);
+        }
+
+        previousPosition = pRigidBody->getWorldTransform().getOrigin();
     }
 
-public:
-    explicit Client(Window* window, World* world) :
-            window(window), world(world) {
-        // Setup physics
-        Player::initializeBody();
-        ghostObject = new btPairCachingGhostObject();
-        ghostObject->setCollisionShape(this->collisionShape);
-        ghostObject->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
-        world->getWorld()->addCollisionObject(ghostObject, btBroadphaseProxy::KinematicFilter, btBroadphaseProxy::StaticFilter | btBroadphaseProxy::DefaultFilter);
+    void updateVelocity(float delta) {
+        // Adjust only xz velocity
+        manualVelocity.setY(pRigidBody->getLinearVelocity().getY());
+        pRigidBody->setLinearVelocity(manualVelocity);
 
-        // Set default start position
-        Thing::setPosition(glm::vec3(0.f, 1.f, 0.f));
-        Camera::updateView(glm::vec3(0.f, 1.f, 0.f));
+        // Decelerate
+        if (!input)
+            manualVelocity *= btPow(1.f - decelerationConstant, delta); // delta-seconds
+
+        // If not hitting wall don't run wall code
+        if (!hittingWall)
+            return;
+
+        // Wall velocity cancellation
+        for (auto & surfaceHitNormal : surfaceHitNormals) {
+            // Cancel velocity across normal
+            btVector3 velInNormalDir((manualVelocity.dot(surfaceHitNormal) / surfaceHitNormal.length2()) * surfaceHitNormal);
+
+            // Apply correction
+            manualVelocity -= velInNormalDir * 1.05f;
+        }
+    }
+
+#define IS_DOWN(x) (this->window->keyboardManager.isKeyDown(x))
+
+    void walk(float delta) {
+        btVector3 forward = btVector3(Camera::front.x, 0, Camera::front.z),
+                right = btVector3(Camera::right.x, 0, Camera::right.z);
+
+        btVector3 dir =
+                ((float)IS_DOWN(GLFW_KEY_W) * forward) -
+                ((float)IS_DOWN(GLFW_KEY_S) * forward) +
+                ((float)IS_DOWN(GLFW_KEY_A) * right) -
+                ((float)IS_DOWN(GLFW_KEY_D) * right);
+
+        // No input, so return
+        input = !dir.isZero();
+        if (!input) return;
+
+        // Normalize dir and convert to velocity
+        dir.normalize() *= delta * accelerationConstant;
+        btVector3 velocityXZ(dir.getX() + manualVelocity.getX(), 0.f, dir.getZ() + manualVelocity.getZ());
+
+        // Prevent from going over maximum speed
+        float speedXZ = velocityXZ.length();
+
+        // TODO: Make velocity relative to yaw
+
+        if (speedXZ > maxSpeed)
+            velocityXZ = velocityXZ / speedXZ * maxSpeed;
+
+        manualVelocity.setX(velocityXZ.getX());
+        manualVelocity.setZ(velocityXZ.getZ());
+    }
+
+    void jump() {
+        if (!onGround || !IS_DOWN(GLFW_KEY_SPACE) || msSinceJump < jumpRechargeTime)
+            return;
+
+        msSinceJump = 0;
+        pRigidBody->applyCentralImpulse(btVector3(0.0f, jumpImpulse, 0.0f));
+
+        // Move upwards slightly so velocity isn't immediately canceled when it detects it as on ground next frame
+        const float jumpYOffset = 0.01f;
+        float previousY = pRigidBody->getWorldTransform().getOrigin().getY();
+        pRigidBody->getWorldTransform().getOrigin().setY(previousY + jumpYOffset);
+    }
+
+#undef IS_DOWN
+
+public:
+    Client(Window* window, World* world, btVector3 position = btVector3(0.f, 1.f, 0.f))
+            : window(window), world(world), manualVelocity(0.0f, 0.0f, 0.0f) {
+        Camera::updateView((glm::vec3&)position.m_floats);
 
         // Create projection matrix
         Camera::resize(window->width, window->height);
 
-        // Don't render client object
-        this->rigidBody->setCollisionFlags(btRigidBody::CollisionFlags::CF_DISABLE_VISUALIZE_OBJECT);
-        this->friction = this->rigidBody->getFriction();
+        // Physics
+        pCollisionShape = new btCapsuleShape(radius, height);
+
+        btVector3 intertia;
+        pCollisionShape->calculateLocalInertia(1.f, intertia);
+        pMotionState = new btDefaultMotionState(btTransform(btQuaternion(1.0f, 0.0f, 0.0f, 0.0f).normalized(), position));
+        btRigidBody::btRigidBodyConstructionInfo rigidBodyCI(1.f, pMotionState, pCollisionShape, intertia);
+
+        // No friction, this is done manually
+        rigidBodyCI.m_friction = 0.0f;
+        rigidBodyCI.m_restitution = 0.0f;
+        rigidBodyCI.m_linearDamping = 0.0f;
+
+        pRigidBody = new btRigidBody(rigidBodyCI);
+        pRigidBody->setAngularFactor(0.0f);
+        pRigidBody->setActivationState(DISABLE_DEACTIVATION); // No sleeping (or else setLinearVelocity won't work)
+        pRigidBody->setCollisionFlags(btRigidBody::CollisionFlags::CF_DISABLE_VISUALIZE_OBJECT);
+
+        world->getWorld()->addRigidBody(pRigidBody);
+
+        // Ghost object that is synchronized with rigid body
+        pGhostObject = new btPairCachingGhostObject();
+        pGhostObject->setCollisionShape(pCollisionShape);
+        pGhostObject->setUserPointer(this);
+        pGhostObject->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
+
+        // Specify filters manually, otherwise ghost doesn't collide with statics for some reason
+        //world->getWorld()->addCollisionObject(pGhostObject, btBroadphaseProxy::KinematicFilter, btBroadphaseProxy::StaticFilter | btBroadphaseProxy::DefaultFilter);
     }
 
-    /**
-     * Update camera look-vectors and acceleration
-     */
     void updateFrame() {
         if (!window->cursorLocked) return;   // Don't update if in Ui
         Camera::updateFrame(this->window);
 
-        //this->groundTest();
-        //this->ghostObject->setWorldTransform(this->transform);
-        this->parseContacts();
+        // Sync ghost with actual object
+        //pGhostObject->setWorldTransform(pRigidBody->getWorldTransform());
 
-        btVector3 acceleration;
-        if (this->getAcceleration(acceleration)) {
-            acceleration = this->accelerationConstant * acceleration.normalize();
-            this->rigidBody->activate();
-            this->rigidBody->applyCentralForce(acceleration);
-        }
-        // Check if on ground, if key pressed, and how long since last jump
-        if (onGround && (IS_DOWN(GLFW_KEY_SPACE) * NOW() / NS_PER_MS) > lastJump + jumpDelay) {
-            lastJump = NOW() / NS_PER_MS;
-            this->rigidBody->activate();
-            this->rigidBody->applyCentralImpulse(btVector3(0.f, this->jumpImpulse, 0.f));
-        }
+        // Update transform
+        pMotionState->getWorldTransform(motionTransform);
+        onGround = false;
+
+        walk(window->deltaTime());
+        parseGhostContacts();
+
+        updatePosition();
+
+        jump();
+        updateVelocity(window->deltaTime());
+
+        // Update view matrix
+        Camera::updateView((glm::vec3&)previousPosition.m_floats);
+
+        // Add frame delta in milliseconds
+        this->msSinceJump += window->frame_delta / 1000000ull;
     }
 
     void updateGui() {
         if (!Ui::isActive()) return; // Don't push ui if not active
         if (ImGui::Begin("Client", &this->show)) {
-            if (ImGui::SliderFloat("Friction", &this->friction, 0.0f, 1.0f, nullptr, ImGuiSliderFlags_AlwaysClamp)) {
-                //this->rigidBody->setFriction(this->friction);
-            }
+            ImGui::SliderFloat("Friction", &decelerationConstant, 0.0f, 1.0f, nullptr, ImGuiSliderFlags_AlwaysClamp);
+            ImGui::SliderFloat("Acceleration", &accelerationConstant, 0.0f, 10.0f, nullptr, ImGuiSliderFlags_AlwaysClamp);
+            ImGui::SliderFloat("Jump Factor", &jumpImpulse, 0.0f, 10.0f, nullptr, ImGuiSliderFlags_AlwaysClamp);
+            ImGui::SliderFloat("Max Speed", &maxSpeed, 0.0f, 10.0f, nullptr, ImGuiSliderFlags_AlwaysClamp);
         }
         ImGui::End();
-    }
-
-    /**
-     * Update the view matrix.
-     * Call after world is updated
-     */
-    void updateTransform() override {
-        Thing::updateTransform();
-        Camera::updateView(this->getPosition());
-    }
-
-    /**
-     * Set rigid body position and update view matrix
-     * @param position the position to move to
-     */
-    void setPosition(const glm::vec3& position) override {
-        Thing::setPosition(position);
-        Camera::updateView(position);
     }
 
     void resize() {
         Camera::resize(window->width, window->height);
     }
 };
-
-#undef IS_DOWN
 
 #endif //GAMEFRAME_FRSTPERSONPLAYER_H

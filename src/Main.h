@@ -1,8 +1,14 @@
 #ifndef PATHTRACER_MAIN_H
 #define PATHTRACER_MAIN_H
 
+// Uncomment for no fps limit :)
+//#define VSYNC (false)
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+
+#define STB_SPRINTF_IMPLEMENTATION
+#include <stb/stb_sprintf.h>
 
 #include "gfx/Window.h"
 #include "Camera.h"
@@ -23,6 +29,8 @@ public:
     World* world;
     Client* client;
     Text* text;
+
+    char str[30];
 
     GameWindow()
     : Window("Fluffy Engine") {
@@ -53,13 +61,10 @@ public:
 
         world = new World();
 
-        client = new Client(this, world);
-        client->setPosition(glm::vec3(0.f, 1.f, 0.f));
-
-        world->addThing(client);
+        client = new Client(this, world, btVector3(0.f, 1.f, 0.f));
 
         text = new Text(client);
-        text->initFont();
+        text->initFont("../resources/menlo.ttf");
 
         Ui::InitImGui(this);
 
@@ -104,7 +109,8 @@ public:
 #ifdef DEBUG
         this->world->renderDebug(this->client);
 #endif
-        text->display(30, 30, glm::vec3(0), "Pee Pee");
+        stbsp_sprintf(str, "%llu", this->fps);
+        text->display(str, 10, this->height - 12, glm::vec3(0));
         Ui::render();
     }
 
