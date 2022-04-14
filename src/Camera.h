@@ -34,6 +34,7 @@ protected:
     }
 
     void updateFrame(Window *game) {
+        if (!game->cursorLocked) return; // Return if in UI
         glm::vec2 mouseDelta = game->mouseManager.delta;
         yaw += mouseDelta.x * mouseSensitivity;
         pitch -= mouseDelta.y * mouseSensitivity;

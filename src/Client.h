@@ -12,17 +12,16 @@ class IgnoreBodyAndGhostCast :
         public btCollisionWorld::ClosestRayResultCallback {
 private:
     btRigidBody* m_pBody;
-    btPairCachingGhostObject* m_pGhostObject;
 
 public:
-    IgnoreBodyAndGhostCast(btRigidBody* pBody, btPairCachingGhostObject* pGhostObject)
+    explicit IgnoreBodyAndGhostCast(btRigidBody* pBody)
             : btCollisionWorld::ClosestRayResultCallback(btVector3(0.0, 0.0, 0.0), btVector3(0.0, 0.0, 0.0)),
-              m_pBody(pBody), m_pGhostObject(pGhostObject)
+              m_pBody(pBody)
     {
     }
 
     btScalar addSingleResult(btCollisionWorld::LocalRayResult& rayResult, bool normalInWorldSpace) override {
-        if (rayResult.m_collisionObject == m_pBody || rayResult.m_collisionObject == m_pGhostObject)
+        if (rayResult.m_collisionObject == m_pBody)
             return 1.0f;
 
         return ClosestRayResultCallback::addSingleResult(rayResult, normalInWorldSpace);
@@ -42,8 +41,9 @@ private:
     const float radius = .3f, height = .6f,
             bottomYOffset = height * .5f + radius,
             bottomRoundedRegionYOffset = height * .5f;
-    float accelerationConstant = 5.f;
-    float decelerationConstant = .8f;
+    // Used for acceleration
+    //float accelerationConstant = 5.f;
+    //float decelerationConstant = .8f;
     float maxSpeed = 3.f;
     float jumpImpulse = 5.f;
     const float stepHeight = .2f;
@@ -56,7 +56,6 @@ private:
     btCollisionShape* pCollisionShape;
     btDefaultMotionState* pMotionState;
     btRigidBody* pRigidBody;
-    btPairCachingGhostObject* pGhostObject;
 
     btVector3 manualVelocity, previousPosition;
     btTransform motionTransform;
@@ -99,9 +98,12 @@ private:
         }
     }
 
+    /**
+     * Steps the client up and cancels velocity if ceiling is hit
+     */
     void updatePosition() {
         // Ray cast, ignore rigid body
-        IgnoreBodyAndGhostCast rayCallBack_bottom(pRigidBody, pGhostObject);
+        IgnoreBodyAndGhostCast rayCallBack_bottom(pRigidBody);
         world->getWorld()->rayTest(pRigidBody->getWorldTransform().getOrigin(),
                                    pRigidBody->getWorldTransform().getOrigin() - btVector3(0.0f, bottomYOffset + stepHeight, 0.0f),
                                    rayCallBack_bottom);
@@ -121,12 +123,12 @@ private:
         float testOffset = 0.07f;
 
         // Ray cast, ignore rigid body
-        IgnoreBodyAndGhostCast rayCallBack_top(pRigidBody, pGhostObject);
+        IgnoreBodyAndGhostCast rayCallBack_top(pRigidBody);
         world->getWorld()->rayTest(pRigidBody->getWorldTransform().getOrigin(),
                                    pRigidBody->getWorldTransform().getOrigin() + btVector3(0.0f, bottomYOffset + testOffset, 0.0f),
                                    rayCallBack_top);
 
-        // Bump up if hit
+        // Cancel velocity if hit head
         if (rayCallBack_top.hasHit()) {
             pRigidBody->getWorldTransform().setOrigin(previousPosition);
 
@@ -138,14 +140,20 @@ private:
         previousPosition = pRigidBody->getWorldTransform().getOrigin();
     }
 
-    void updateVelocity(float delta) {
+    /**
+     * Applies velocity and cancels velocity across contact normals
+     */
+    void updateVelocity() {
         // Adjust only xz velocity
         manualVelocity.setY(pRigidBody->getLinearVelocity().getY());
         pRigidBody->setLinearVelocity(manualVelocity);
 
-        // Decelerate
-        if (!input)
-            manualVelocity *= btPow(1.f - decelerationConstant, delta); // delta-seconds
+        /*// Decelerate
+        if (!input) {
+            float dec = maxSpeed*maxSpeed;
+            manualVelocity -= manualVelocity * dec * delta;
+            //manualVelocity *= btPow(1.f - decelerationConstant, delta); // delta-seconds
+        }*/
 
         // If not hitting wall don't run wall code
         if (!hittingWall)
@@ -163,7 +171,11 @@ private:
 
 #define IS_DOWN(x) (this->window->keyboardManager.isKeyDown(x))
 
-    void walk(float delta) {
+    /**
+     * Update XZ velocity based on input
+     */
+    void walk() {
+        if (!onGround) return;
         btVector3 forward = btVector3(Camera::front.x, 0, Camera::front.z),
                 right = btVector3(Camera::right.x, 0, Camera::right.z);
 
@@ -175,11 +187,11 @@ private:
 
         // No input, so return
         input = !dir.isZero();
-        if (!input) return;
+        if (!input) return manualVelocity.setZero();
 
         // Normalize dir and convert to velocity
-        dir.normalize() *= delta * accelerationConstant;
-        btVector3 velocityXZ(dir.getX() + manualVelocity.getX(), 0.f, dir.getZ() + manualVelocity.getZ());
+        dir.normalize() *= maxSpeed; //delta * accelerationConstant;
+        /*btVector3 velocityXZ(dir.getX() + manualVelocity.getX(), 0.f, dir.getZ() + manualVelocity.getZ());
 
         // Prevent from going over maximum speed
         float speedXZ = velocityXZ.length();
@@ -187,12 +199,15 @@ private:
         // TODO: Make velocity relative to yaw
 
         if (speedXZ > maxSpeed)
-            velocityXZ = velocityXZ / speedXZ * maxSpeed;
+            velocityXZ = velocityXZ / speedXZ * maxSpeed;*/
 
-        manualVelocity.setX(velocityXZ.getX());
-        manualVelocity.setZ(velocityXZ.getZ());
+        manualVelocity.setX(dir.getX());
+        manualVelocity.setZ(dir.getZ());
     }
 
+    /**
+     * Update Y velocity based on input
+     */
     void jump() {
         if (!onGround || !IS_DOWN(GLFW_KEY_SPACE) || msSinceJump < jumpRechargeTime)
             return;
@@ -235,35 +250,21 @@ public:
         pRigidBody->setCollisionFlags(btRigidBody::CollisionFlags::CF_DISABLE_VISUALIZE_OBJECT);
 
         world->getWorld()->addRigidBody(pRigidBody);
-
-        // Ghost object that is synchronized with rigid body
-        pGhostObject = new btPairCachingGhostObject();
-        pGhostObject->setCollisionShape(pCollisionShape);
-        pGhostObject->setUserPointer(this);
-        pGhostObject->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
-
-        // Specify filters manually, otherwise ghost doesn't collide with statics for some reason
-        //world->getWorld()->addCollisionObject(pGhostObject, btBroadphaseProxy::KinematicFilter, btBroadphaseProxy::StaticFilter | btBroadphaseProxy::DefaultFilter);
     }
 
     void updateFrame() {
-        if (!window->cursorLocked) return;   // Don't update if in Ui
         Camera::updateFrame(this->window);
-
-        // Sync ghost with actual object
-        //pGhostObject->setWorldTransform(pRigidBody->getWorldTransform());
 
         // Update transform
         pMotionState->getWorldTransform(motionTransform);
         onGround = false;
 
-        walk(window->deltaTime());
         parseGhostContacts();
-
         updatePosition();
 
+        walk();
         jump();
-        updateVelocity(window->deltaTime());
+        updateVelocity();
 
         // Update view matrix
         Camera::updateView((glm::vec3&)previousPosition.m_floats);
@@ -275,8 +276,8 @@ public:
     void updateGui() {
         if (!Ui::isActive()) return; // Don't push ui if not active
         if (ImGui::Begin("Client", &this->show)) {
-            ImGui::SliderFloat("Friction", &decelerationConstant, 0.0f, 1.0f, nullptr, ImGuiSliderFlags_AlwaysClamp);
-            ImGui::SliderFloat("Acceleration", &accelerationConstant, 0.0f, 10.0f, nullptr, ImGuiSliderFlags_AlwaysClamp);
+            //ImGui::SliderFloat("Friction", &decelerationConstant, 0.0f, 1.0f, nullptr, ImGuiSliderFlags_AlwaysClamp);
+            //ImGui::SliderFloat("Acceleration", &accelerationConstant, 0.0f, 10.0f, nullptr, ImGuiSliderFlags_AlwaysClamp);
             ImGui::SliderFloat("Jump Factor", &jumpImpulse, 0.0f, 10.0f, nullptr, ImGuiSliderFlags_AlwaysClamp);
             ImGui::SliderFloat("Max Speed", &maxSpeed, 0.0f, 10.0f, nullptr, ImGuiSliderFlags_AlwaysClamp);
         }
