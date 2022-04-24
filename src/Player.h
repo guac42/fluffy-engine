@@ -18,26 +18,26 @@ protected:
      * Initialize bodies
      */
     void initializeBody() override {
-        this->collisionShape = new btCapsuleShape(radius, height);
+        this->pCollisionShape = new btCapsuleShape(radius, height);
 
         // Default player position
-        this->transform.setIdentity();
-        this->transform.setOrigin(btVector3(0.f, 1.f, 0.f));
+        this->motionTransform.setIdentity();
+        this->motionTransform.setOrigin(btVector3(0.f, 1.f, 0.f));
 
         btScalar mass(1.f);
         btVector3 localInertia(0, 0, 0);
-        this->collisionShape->calculateLocalInertia(mass, localInertia);
+        this->pCollisionShape->calculateLocalInertia(mass, localInertia);
 
         //using motionstate is recommended, it provides interpolation capabilities, and only synchronizes 'active' objects
-        btDefaultMotionState *myMotionState = new btDefaultMotionState(this->transform);
-        btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, myMotionState, this->collisionShape, localInertia);
+        btDefaultMotionState *myMotionState = new btDefaultMotionState(this->motionTransform);
+        btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, myMotionState, this->pCollisionShape, localInertia);
         rbInfo.m_friction = 0.f;
         rbInfo.m_restitution = 0.f;
         rbInfo.m_linearDamping = 0.f;
 
-        this->rigidBody = new btRigidBody(rbInfo);
-        this->rigidBody->setAngularFactor(btScalar(0.));
-        this->rigidBody->setActivationState(DISABLE_DEACTIVATION);
+        this->pRigidBody = new btRigidBody(rbInfo);
+        this->pRigidBody->setAngularFactor(btScalar(0.));
+        this->pRigidBody->setActivationState(DISABLE_DEACTIVATION);
     }
 };
 

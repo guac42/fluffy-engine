@@ -4,14 +4,35 @@
 // Uncomment for no fps limit :)
 //#define VSYNC (false)
 
+// Configure Tiny glTF
+#define TINYGLTF_USE_CPP14
+#define TINYGLTF_NO_INCLUDE_STB_IMAGE
+#define TINYGLTF_NO_INCLUDE_STB_IMAGE_WRITE
+
+// Header only library definitions/include
+#define TINYGLTF_IMPLEMENTATION
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_SPRINTF_IMPLEMENTATION
+#define STB_TRUETYPE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb/stb_image.h>
+#include <stb/stb_sprintf.h>
+#include <stb/stb_truetype.h>
+#include <stb/stb_image_write.h>
+#include <misc/tiny_gltf.h>
+// Prevent redefinition of lib functions
+#undef TINYGLTF_IMPLEMENTATION
+#undef STB_IMAGE_IMPLEMENTATION
+#undef STB_SPRINTF_IMPLEMENTATION
+#undef STB_TRUETYPE_IMPLEMENTATION
+#undef STB_IMAGE_WRITE_IMPLEMENTATION
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#define STB_SPRINTF_IMPLEMENTATION
-#include <stb/stb_sprintf.h>
-
 #include "gfx/Window.h"
 #include "Camera.h"
+#include "scene/Scene.h"
 #include "rendering/Skybox.h"
 #include "rendering/Text.h"
 #include "rendering/objects/ShaderProgram.h"
@@ -19,7 +40,12 @@
 #include "World.h"
 #include "Client.h"
 #include "Config.h"
+#include "Gltf.h"
 #include "Ui.h"
+
+// TODO: Implement rendering system (renderer)
+// TODO: Scaled text rendering
+// TODO: Physics system refactoring
 
 class GameWindow : public Window {
 public:
@@ -29,6 +55,7 @@ public:
     World* world;
     Client* client;
     Text* text;
+    Gltf* model;
 
     char str[30];
 
@@ -52,12 +79,14 @@ public:
 
             vao = new VertexArray();
             vao->AddSourceBuffer(dataBuffer, 0, 6*sizeof(float));
-            vao->AddSourceBuffer(dataBuffer, 1, 6*sizeof(float), 3*sizeof(float));
+            vao->AddSourceBuffer(dataBuffer, 3, 6*sizeof(float), 3*sizeof(float));
             vao->SetAttribFormat(0, 3, GL_FLOAT); // position
-            vao->SetAttribFormat(1, 3, GL_FLOAT); // color
+            vao->SetAttribFormat(3, 3, GL_FLOAT); // color
         }
 
-        skybox = new Skybox("./resources/blue.png");
+        model = new Gltf("../resources/cube.glb");
+        //model->modelDebug();
+        skybox = new Skybox("../resources/blue.png");
 
         world = new World();
 
@@ -106,6 +135,7 @@ public:
         program->Upload("p", this->client->getProjection());
         vao->Bind();
         glDrawArrays(GL_TRIANGLES, 0, 3);
+        model->renderModel();
 #ifdef DEBUG
         this->world->renderDebug(this->client);
 #endif

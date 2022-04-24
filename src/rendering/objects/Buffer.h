@@ -5,10 +5,11 @@
 
 class Buffer {
 private:
-    GLuint id = -1, size = 0;
+    GLuint id;
+    long size;
 
 public:
-    Buffer() {
+    Buffer() : id(-1), size(0) {
         glCreateBuffers(1, &this->id);
     }
 
@@ -16,12 +17,12 @@ public:
         glBindBuffer(bufferTarget, this->id);
     }
 
-    void Allocate(int size, void *data, GLenum bufferStorageFlags) {
+    void Allocate(long size, void *data, GLenum bufferStorageFlags) {
         glNamedBufferStorage(this->id, size, data, bufferStorageFlags);
         this->size = size;
     }
 
-    void Data(int size, void *data, GLenum bufferUsage) {
+    void Data(long size, void *data, GLenum bufferUsage) {
         glNamedBufferData(this->id, size, data, bufferUsage);
         this->size = size;
     }
@@ -30,7 +31,7 @@ public:
         return this->id;
     }
 
-    unsigned int getSize() const {
+    long getSize() const {
         return this->size;
     }
 

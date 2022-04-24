@@ -37,9 +37,9 @@ public:
 
         vao = new VertexArray();
         vao->AddSourceBuffer(buffer, 0, 6*sizeof(float));
-        vao->AddSourceBuffer(buffer, 1, 6*sizeof(float), 3*sizeof(float));
+        vao->AddSourceBuffer(buffer, 3, 6*sizeof(float), 3*sizeof(float));
         vao->SetAttribFormat(0, 3, GL_FLOAT);
-        vao->SetAttribFormat(1, 3, GL_FLOAT);
+        vao->SetAttribFormat(3, 3, GL_FLOAT);
 
         program->Use();
         program->Upload("m", glm::mat4(1));

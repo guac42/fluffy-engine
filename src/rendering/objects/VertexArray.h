@@ -19,6 +19,10 @@ public:
         glVertexArrayVertexBuffer(this->id, bindingIndex, vbo.getId(), bufferOffset, stride);
     }
 
+    void AddElementBuffer(const Buffer& ebo) const {
+        glVertexArrayElementBuffer(this->id, ebo.getId());
+    }
+
     void SetAttribFormat(int index, int numAttribElements, GLenum vertexAttribType, int offset = 0) const {
         glEnableVertexArrayAttrib(this->id, index);
         glVertexArrayAttribFormat(this->id, index, numAttribElements, vertexAttribType, false, offset);

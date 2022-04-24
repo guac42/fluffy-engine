@@ -65,7 +65,10 @@ private:
     // Ui
     bool show = true;
 
-    void parseGhostContacts() {
+    /**
+     * Update contact normals using world contact manifolds
+     */
+    void parseContacts() {
         btPersistentManifold** manifoldArray = world->getWorld()->getDispatcher()->getInternalManifoldPointer();
         int numManifolds = world->getWorld()->getDispatcher()->getNumManifolds();
 
@@ -247,7 +250,7 @@ public:
         pRigidBody = new btRigidBody(rigidBodyCI);
         pRigidBody->setAngularFactor(0.0f);
         pRigidBody->setActivationState(DISABLE_DEACTIVATION); // No sleeping (or else setLinearVelocity won't work)
-        pRigidBody->setCollisionFlags(btRigidBody::CollisionFlags::CF_DISABLE_VISUALIZE_OBJECT);
+        pRigidBody->setCollisionFlags(btRigidBody::CollisionFlags::CF_DISABLE_VISUALIZE_OBJECT); // No debug draw
 
         world->getWorld()->addRigidBody(pRigidBody);
     }
@@ -259,7 +262,7 @@ public:
         pMotionState->getWorldTransform(motionTransform);
         onGround = false;
 
-        parseGhostContacts();
+        parseContacts();
         updatePosition();
 
         walk();
@@ -283,6 +286,15 @@ public:
         }
         ImGui::End();
     }
+
+    /*void setPosition(const btVector3& position) {
+        previousPosition = position;
+        manualVelocity.setZero();
+        pRigidBody->setLinearVelocity(manualVelocity);
+        motionTransform.setOrigin(position);
+        pMotionState->setWorldTransform(motionTransform);
+        Camera::updateView((glm::vec3&)position);
+    }*/
 
     void resize() {
         Camera::resize(window->width, window->height);

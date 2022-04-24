@@ -1,7 +1,6 @@
 #include "Image.h"
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb/stb_image.h"
+#include <stb/stb_image.h>
 
 unsigned char* Image::load(char const *filename, int *x, int *y, int *comp) {
     return stbi_load(filename, x, y, comp, 0);

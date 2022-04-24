@@ -4,8 +4,7 @@
 #include <cstdio>
 #include <glad/glad.h>
 
-#define STB_TRUETYPE_IMPLEMENTATION
-#include "stb/stb_truetype.h"
+#include <stb/stb_truetype.h>
 
 class Text {
 private:
